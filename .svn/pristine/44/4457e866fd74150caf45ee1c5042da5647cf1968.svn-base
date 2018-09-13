@@ -1,0 +1,1246 @@
+<template>
+  <div class="par-state main-padding">
+    <div class="state-one">
+      <div class="state-top">
+        <div class="state-round">{{floorName}}<div class="state-box"></div></div>
+      </div>
+      <div class="state-bottom">
+         <div class="collapse" style="text-align: center;">
+           <div class="collapseShow" v-show="collapseShow">无引导屏列表数据</div>
+           <el-collapse accordion @change="showCarList">
+             <!--无列表数据-->
+             <el-collapse-item class="screenList"  v-for="(item, index) in screenList" value="item"  :key="item.screen_id" :name="JSON.stringify(item)">
+               <template slot="title">
+                 <div style="background-color: #efefef; font-family: 'Microsoft YaHei UI'; font-size: 14px; border: 1px solid #d3d3d3;">
+                   引导屏ID: {{ item.screen_id }}
+                 </div>
+               </template>
+               <div class="carScreenList">
+
+                 <div class="carScreenListItem" v-for="item in controlCarList" :key="item.index">
+                    <!--:style="{lineHeight: '100%'}"-->
+                   <div class="screenIndex" @click="choseScreen(item)" :style="{lineHeight: '100%',}">
+                      <div class="screenIndexSon">
+                        {{item.message}}
+                      </div>
+                   </div>
+                   <div class="screenCar">
+                      <span class="spanCar" :style="{background:item.carColor+''}" v-for="it in item.carpos_list" :key="it.index">
+                           {{it.carpos_name}}
+                       </span>
+
+                     <!--<div style="position:absolute; float: left; border:1px solid black;">
+                       &lt;!&ndash;78687&ndash;&gt;
+                       <span class="spanCar" :style="{background:item.carColor+''}" v-for="it in item.carpos_list" :key="it.index">
+                           {{it.carpos_name}}
+                       </span>
+                     </div>-->
+                   </div>
+                 </div>
+               </div>
+             </el-collapse-item>
+            <!-- <el-collapse-item title="反馈 Feedback">
+               <div>控制反馈：</div>
+               <div>页面反馈:</div>
+             </el-collapse-item>
+             <el-collapse-item title="效率 Efficiency">
+               <div>简化流程:</div>
+               <div>清晰明确：</div>
+               <div>帮助用户识别：</div>
+             </el-collapse-item>
+             <el-collapse-item title="可控 Controllability">
+               <div>用户决策</div>
+               <div>结果可控</div>
+             </el-collapse-item>-->
+           </el-collapse>
+
+         </div>
+
+        <!--<ul>
+          <li v-for="item in stateData" :style="{border:'1px solid #'+item.back+''}">
+            <span :style="{background:'#'+item.back+''}"></span><i :style="{borderRight:'1px solid #'+item.back+''}"></i>{{item.name}}：{{item.numberSize}}
+          </li>
+        </ul>-->
+      </div>
+    </div>
+    <div class="state-tor" id="mapDiv">
+      <div class="the-map" id="map" ref="mybox">
+      </div>
+      <div class="button" >
+        <el-button type="primary" v-show="batchAdd"  round size="medium" @click="batchAdd=!batchAdd">批量添加</el-button>
+        <div class="buttonSon" v-show="!batchAdd">
+          <div class="sonbt">
+            <el-button  type="danger" round size="medium" @click="cancelAdd">取消添加</el-button>
+          </div>
+          <div class="sonbt">
+            <el-button  type="primary" round size="medium" @click="addScreenCar" >确认添加</el-button>
+          </div>
+        </div>
+      </div>
+      <img src="../../../static/img/up.png" alt="up" @click="upFloor()" class="up">
+      <div id="floor">
+        <ul id="floorUl" ref="floorUl"></ul>
+      </div>
+      <img src="../../../static/img/down.png" alt="down" @click="downFloor()" class="down">
+      <!--<button class="map-button" @click="nextFloor()">下一层</button>-->
+      <!--<button  class="map-button" style=" top: 70%" @click="openDialog" >弹出</button>-->
+      <!--<button  class="map-button" style=" top: 30%" @click="mapImg" >地图弹框</button>-->
+      <!--车位信息-->
+      <div id="popup" ref="popup" class="ol-popup">
+        <div id="popHeader" class="popDiv">
+          车位信息
+          <i class="el-icon-error" id="i-error" @click.self="hideOverLayer()"></i>
+        </div>
+        <div id="popOne" class="popDiv" >
+            车位号:{{ featureDate.carNum }}
+        </div>
+        <div id="popTwo" class="popDiv">
+            分区号:{{ featureDate.carArea }}
+        </div>
+        <div id="popThree" class="popDiv">
+          <el-button class="popBt" type="primary"  size="mini" @click="deleteCar">删除</el-button>
+        </div>
+      </div>
+      <!---->
+    </div>
+    <!--消息弹窗-->
+    <!-- <dialog-msg :title="diaglogMsg" :msgType="0" :msgData="diagloMsg" @getAll="parkinMsg"  v-if="dialogVisible">
+
+     </dialog-msg>-->
+    <!--地图弹窗-->
+    <el-dialog
+      class="imgSrcDialog"
+      title="查看图片"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="mapVehicle"
+      @close='mapDialog'
+      top="35vh"
+      width="30%"
+    >
+      <div class="map-img">
+        <img v-bind:src="carNumberSrc">
+      </div>
+
+    </el-dialog>
+
+  </div>
+</template>
+
+<script>
+  import  { module } from "../../../static/ol/findMapOOB";
+  //---------------------------------
+
+  export default {
+    name: "parking-state",
+    components:{
+
+    },
+    data(){
+      return{
+        stateMsg:true,
+        mapVehicle:false,
+        featureDate:'',//点击后获取的要素数据
+        carNumberSrc:'',//车牌图片路径
+        popupLayer:'',//地图信息层
+        collapseShow: false,//引导屏的列表是否显示;
+        parkMap:'',//引导屏管理地图
+        //当前楼层名称
+        floorName:"",
+        floorId:"LX01",//楼层ID
+        //占用数，空余数，超时停车，黑名单，违规停车，特殊车辆显示数据
+        stateData:[],
+        choseScreenId:'',//选择的屏幕ID
+        screenList:[//屏幕列表
+          /*{
+            "screen_id" : "1",
+            "screen_x" : 35224.9999814485,
+            "screen_y" : -46875.000021975,
+            "floor_id" : "LX02",
+            "screen_sizetype" : 2
+          },
+          {
+            "screen_id" : "2",
+            "screen_x" : 20.0,
+            "screen_y" : 30.0,
+            "floor_id" : "LX02",
+            "screen_sizetype" : 2
+          },
+          {
+            "screen_id" : "3",
+            "screen_x" : 20.0,
+            "screen_y" : 30.0,
+            "floor_id" : "LX02",
+            "screen_sizetype" : 2,
+            "index_list":[]
+          },
+          {
+            "screen_id" : "4",
+            "screen_x" : 20.0,
+            "screen_y" : 30.0,
+            "floor_id" : "LX02",
+            "screen_sizetype" : 2,
+            "index_list":[]
+          },
+          {
+            "screen_id" : "5",
+            "screen_x" : 20.0,
+            "screen_y" : 30.0,
+            "floor_id" : "LX02",
+            "screen_sizetype" : 2,
+            "index_list":[]
+          }*/
+        ],
+        controlCarList:[],//初始化的数据;
+        screenControlCar:[//屏幕管辖的车位
+          {
+            index : "1",
+            // message:'左',//获取幕管辖车位的数据后，添加的参数;
+            // carColor:'#ffc6ee',//获取屏幕管辖车位的数据后，添加的参数
+            carpos_list : [
+              {
+                "carpos_name" : "21",
+                "carpos_gid" : "LX02421",
+                "carpos_areaID" : "4"
+              },
+              {
+                "carpos_name" : "26",
+                "carpos_gid" : "LX02426",
+                "carpos_areaID" : "4"
+              },
+              {
+                "carpos_name" : "07",
+                "carpos_gid" : "LX02407",
+                "carpos_areaID" : "4"
+              },
+              {
+                "carpos_name" : "13",
+                "carpos_gid" : "LX02513",
+                "carpos_areaID" : "5"
+              },{
+                "carpos_name" : "05",
+                "carpos_gid" : "LX02505",
+                "carpos_areaID" : "5"
+              }
+
+            ]
+          },
+          {
+            index : "2",
+            // message:'中',//获取幕管辖车位的数据后，添加的参数;
+            // carColor:'#cfc9ff',//获取幕管辖车位的数据后，添加的参数
+            carpos_list : [
+              {
+                "carpos_name" : "39",
+                "carpos_gid" : "LX02539",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "54",
+                "carpos_gid" : "LX02554",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "06",
+                "carpos_gid" : "LX02506",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "43",
+                "carpos_gid" : "LX02543",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "56",
+                "carpos_gid" : "LX02556",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "66",
+                "carpos_gid" : "LX02566",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "47",
+                "carpos_gid" : "LX02547",
+                "carpos_areaID" : "5"
+              },
+              {
+                "carpos_name" : "55",
+                "carpos_gid" : "LX02555",
+                "carpos_areaID" : "5"
+              }
+            ]
+          },
+          {
+            index : "3",
+            // message:'右',//获取幕管辖车位的数据后，添加的参数;
+            // carColor:'#84e246',//获取幕管辖车位的数据后，添加的参数
+            carpos_list : [
+              {
+                "carpos_name" : "34",
+                "carpos_gid" : "LX02434",
+                "carpos_areaID" : "4"
+              },
+              {
+                "carpos_name" : "32",
+                "carpos_gid" : "LX02432",
+                "carpos_areaID" : "4"
+              },
+              {
+                "carpos_name" : "05",
+                "carpos_gid" : "LX02505",
+                "carpos_areaID" : "5"
+              }
+            ]
+          }
+        ],
+        batchAdd:true,//批量添加的标识;
+        addScreenCarArr:[]//添加到引导屏幕的车位数组
+      }
+    },
+    created(){
+      let url=this.$Api+'/GOSSystem/ScreenList';
+
+      console.log(url);
+
+      let userId='beefind001';
+      let floorId=this.floorId!=null&&this.floorId!=undefined&&this.floorId!="" ? this.floorId : "Lx01";
+
+      console.log(this.floorId);
+
+      this.getScreenList(url,this.$BuildId,this.floorId,userId);
+      //this.initParkinfo();//获取引导屏相关信息(根据楼层;)
+    },
+    mounted(){
+      //创建地图
+
+      //console.log(this.$Api);
+      var parkThis=this;
+
+      this.pushTaggle = localStorage.getItem('messagePush')==='true';
+
+      //console.log(parkThis.dialogVisible);
+
+      var b_map=new module.BeefindMap({
+        "target": this.$refs.mybox,
+        "floorUl":this.$refs.floorUl,
+        'mapType':'screenControl',
+        'urlLocal':this.$Api,
+        "city_id":this.$CityId,//城市城市ID
+        "build_id":this.$BuildId,//項目ID
+        "floor_id" :'LX01',//樓層ID
+        "floorBarVisible":true,//楼层控件
+        "carLayerVisible":true,//车位层是否显示(默认显示)
+        "carPortLayerVisible":true,//车位号层是否显示(默认显示)
+        "interLayerVisible":true,//兴趣点层是否显示(默认显示)
+        "deviceLayerVisible":false,//设备层是否显示(默认不显示)
+        "deviceLayerVisible":false//设备层是否显示(默认不显示)
+      });
+      parkThis.parkMap=b_map;
+
+      //console.log(b_map.floorId);
+
+      parkThis.floorId=b_map.floorId;
+
+      //popup
+      var popup = new ol.Overlay({
+        element: parkThis.$refs.popup,
+        positioning: 'top-center',
+        stopEvent: true,
+        offset: [0, -25]
+      });
+      //
+      parkThis.popupLayer=popup;
+      //
+      parkThis.parkMap.addOverlay(parkThis.popupLayer);
+
+
+      parkThis.parkMap.on('singleclick',function (event) {
+        //console.log(event)
+
+        var feature = parkThis.parkMap.forEachFeatureAtPixel(event.pixel, function (feature) {
+          return feature;
+        });
+        console.log(feature);
+        if (feature) {
+          parkThis.featureDate=feature;
+            /*
+             *逻辑: 0.9判断点击的是否为车位;
+             *    1.0判断是否点击了引导屏;choseCar是否為undefind ? true : false;
+             *    1.1判断是否开启添加;true ? 按钮变化为两个 : 一个按钮;
+             *
+             *    1.2判断是否为选中的车位;choseCar?true:false;
+             *    1.3添加选中状态;
+             *    1.4把选择的车位信息保存起来!
+             */
+            if(feature.type=='car'||feature.type=='carEvent'){//0.9
+
+              if(feature.choseCar!=undefined){//1.0
+
+                if(!parkThis.batchAdd){//1.1
+
+                  if(!feature.choseCar){//1.2
+
+                       if(feature.type=='car'){
+                         feature.setCarColor('#7460ee');//1.3
+                       }else{
+                         feature=module.findCarFeature(feature);
+                         feature.setCarColor('#7460ee');//1.3
+                       };
+                       //1.4如果车位已经添加，就不要加数组;
+                       parkThis.filterFeature(feature);//
+                       //parkThis.addScreenCarArr.push(feature);
+                       //console.log(parkThis.addScreenCarArr);
+                  }else {
+                    parkThis.warn('该车位已添加,请选择其他车位!');
+                  };
+
+                }else{
+
+                  /*
+                  * (在这里做删除车位要素操作);
+                  * 1.0首先判断是否为控制车位;
+                  * 1.1如果是控制车位，就把车位要素保存;并且显示弹框;
+                  * 1.2然后把车位要素通过接口删除;
+                  * 1.3删除成功后刷新控制车位列表;
+                  * 1.4删除成功后刷新地图车位;
+                  * */
+                  if(feature.choseCar){
+                    console.log('为控制车位!');//1.0
+                    let coordinates = feature.carposPoint;
+                    parkThis.popupLayer.setPosition(coordinates);
+                  }else{
+                    parkThis.warn('请开启添加按钮!');
+                  };
+
+                };
+
+              }else {
+                //提示点选引导屏
+                parkThis.warn('请选择你要添加的引导屏以及方位!');
+              };
+            }else {
+              parkThis.warn('请点击你要添加的车位!');
+            };
+          /*if(feature.type=='car'||feature.type=='carEvent'){
+            parkThis.featureDate=feature;
+            if(feature.car_state=='0'){
+              parkThis.popupLayer.setPosition(undefined);
+              parkThis.dialogWarn();
+
+            }else if(feature.car_state=='5'){
+              parkThis.specialWarn();
+            }else{
+              var coordinates = feature.carposPoint;
+              parkThis.popupLayer.setPosition(coordinates);
+
+            };//
+            //----------------
+          };*/
+          //localStorage.setItem('clickMap','4');
+        }else{
+          return;
+        };//edit
+        //
+      });
+      // console.log(b_map);
+      //
+      parkThis.initParkInfo(parkThis.parkMap.floor,parkThis.parkMap.carpos_sum);
+
+      //console.log(parkThis.parkMap.carpos_sum);
+      //
+
+
+    },
+    beforeDestroy(){
+      const mapThis=this;
+      mapThis.parkMap.removeEventListener('singleclick');
+      //console.log(mapThis.parkMap);
+      module.clearStateInter();//清除全局定时器;
+      mapThis.parkMap="";
+      //console.log(module);
+
+      mapThis.popupLayer.setPosition(undefined);
+
+    },
+    methods:{
+      //地图弹窗
+      mapImg(){
+        this.mapVehicle=true
+      },
+      mapDialog(){
+        this.mapVehicle=false
+      },
+      //初始化查询出来的占用数，空余数，超时停车，黑名单，违规停车，特殊车辆显示数据
+      initParkInfo(floorName,sumDate){
+
+        //console.log(floorName);
+        //
+        let date=sumDate;
+        //
+
+        this.floorName=floorName; //改变楼层
+      },
+
+      stateClose(){
+        // console.log('我关闭了')
+      },
+      stateClick(){
+        // console.log('查看')
+      },
+      //下一层
+      upFloor(){
+        var self=this;
+        let url=this.$Api+'/GOSSystem/ScreenList';
+        let userId='beefind001';
+        module.upFloor(clickSuccess);
+        function clickSuccess(evevt,floorId){
+          self.floorName=evevt;
+          self.floorId=floorId;
+          self.initParkInfo(self.parkMap.floor,self.parkMap.carpos_sum);
+          self.getScreenList(url,self.$BuildId,self.floorId,userId);
+        };
+      },
+      downFloor(){
+        var self=this;
+        let url=this.$Api+'/GOSSystem/ScreenList';
+        let userId='beefind001';
+        module.downFloor(clickSuccess);
+        function clickSuccess(event,floorId){//1,name;2,id;
+          self.floorName=event;
+          self.floorId=floorId;
+          self.initParkInfo(self.parkMap.floor,self.parkMap.carpos_sum);
+          //
+          self.getScreenList(url,self.$BuildId,self.floorId,userId);
+        };
+      },
+      //打开警告弹窗
+      openDialog(){
+        this.dialogVisible=true;
+        //暂时没写
+      },//
+      //查看车牌信息
+      carNumberImg(){
+        //http://beefindtech.cn:40005
+        //http://127.0.0.1:30005
+        let that=this;
+        //console.log(this.featureDate.car_picUrl);
+        let carImg=that.$Api+this.featureDate.car_picUrl.substring(25);
+        console.log(carImg);
+        that.carNumberSrc="";
+
+        setTimeout(function () {
+          that.carNumberSrc=carImg;
+          that.popupLayer.setPosition(null);
+          that.mapVehicle=true;
+        },150);
+
+
+      },
+      warn(date) {
+        this.$message({
+          message: date,
+          type: 'warning',
+          center:true
+        });
+      },
+      specialWarn(){
+        this.$message({
+          message: '该车为特殊车辆!无权限查看!',
+          type: 'warning',
+          center:true
+        });
+      },
+      featureWarn(){
+        this.$message({
+          message: '查看车牌请点击车位!',
+          type: 'warning',
+          center:true
+        });
+      },
+      hideOverLayer(){
+        this.featureDate="";
+        //this.popupLayer.setPosition(null);
+        this.popupLayer.setPosition(undefined);
+      },
+      getScreenList(url,buildId,floorId,userId){//获取屏幕列表!
+        var params = new URLSearchParams();
+        params.append('build_id', buildId);
+        params.append('floor_id', floorId);
+        params.append('user_id', 'beefind001');
+         this.$http.post(
+           url,
+           params,
+           {
+             timeout:2000,
+             headers:{
+               'Content-Type':'application/x-www-form-urlencoded'
+             }
+
+           }).then((response) => {
+             console.log(response);
+             //获取屏幕ID之后的逻辑处理
+             //response.data;
+              if(response.data.result=='1'){
+                //&&response.data.screen_list.length>=1
+                if(response.data.screen_list.length>=1){
+                  this.collapseShow=false;
+                  this.screenList=[];
+                  this.screenList=response.data.screen_list;
+                }else{
+                  this.warn('引导屏列表为空');
+                };
+
+              }else{
+                //获取数据失败!
+                this.screenList=[];
+                this.collapseShow=true;
+               this.warn('获取屏幕列表失败!');
+              };//
+
+
+           }).catch((error) => {
+              //console.log(error);
+           this.$notify({
+             title: 'ERROR',
+             message: `${error}`,
+             duration: 2000,
+             type: 'error'
+           });
+         });
+      },
+      filterControlCarList(date){//过滤引导屏幕管辖的车位列表
+        let that = this;
+        let data=date;
+        data.forEach(function (val) {
+           if(val.index=='1'){
+              val.message='右';
+              val.carColor='#ffc6ee';
+           }else if(val.index=='2'){
+             val.message='中';
+             val.carColor='#cfc9ff';
+           }else{
+             val.message='左';
+             val.carColor='#84e246';
+           };
+        });
+        return data;
+      },
+      getControlCarList(url,date){//获取引导屏控制的车位信息
+
+        var params = new URLSearchParams();
+        params.append('build_id', date.build_id);
+        params.append('floor_id', date.floor_id);
+        params.append('user_id', date.user_id);
+        params.append('screen_id', date.screen_id);
+
+        this.$http.post(
+          url,
+          params,
+          {
+            timeout:2000,
+            headers:{
+              'Content-Type':'application/x-www-form-urlencoded'
+            }
+
+          }).then((response) => {
+          console.log(response);
+          //获取屏幕ID之后的逻辑处理
+          //response.data;
+          if(response.data.result=='1'){
+            this.controlCarList=this.filterControlCarList(response.data.index_list);
+            //this.controlCarList=this.screenControlCar;
+          }else{
+            //获取数据失败!
+            this.warn('获取屏幕控制车位列表失败!');
+          };//
+
+
+        }).catch((error) => {
+          //console.log(error);
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+
+      },
+      addScreenCarControl(url,date){//添加车位到引导屏幕
+        /*
+        * 1.0添加车位;
+        * 1.1刷新引导屏控制的车位(显示);
+        * */
+        //对于数据进行序列化;
+        var date=date;
+        var params = new URLSearchParams();
+        let getScreenCarUrl=this.$Api+'/GOSSystem/screenCarposList';
+        let postDate={
+          user_id : "beefind001",
+          build_id : this.$BuildId,
+          floor_id : this.floorId,
+          screen_id : this.choseScreenId
+        };
+        for(let i in date){
+            //console.log(JSON.stringify(date[i]));
+          params.append(i,JSON.stringify(date[i]));
+        };
+        this.$http.post(
+          url,
+          params,
+          {
+            timeout:2000,
+            headers:{
+              'Content-Type':'application/x-www-form-urlencoded'
+            }
+
+          }).then((response) => {
+          console.log(response);
+          //获取屏幕ID之后的逻辑处理
+          //response.data;
+          if(response.data.result=='1'){
+            /*
+            * 添加车位成功!
+            * 1,刷新车位引导屏幕列表;
+            * 2,更新地图引导屏幕控制车位
+            * */
+            this.getControlCarList(getScreenCarUrl,postDate);//
+            //根据获取到的引导屏控制车位列表，找到添加的引导屏;
+            let refreshCotrolCar=this.controlCarList.filter(function (val) {
+              return val.index==date.index;
+            });
+            //刷新地图的状态;
+            console.log(refreshCotrolCar);
+            module.screenCarColor(refreshCotrolCar,refreshCotrolCar.carColor);
+
+          }else{
+            //获取数据失败!
+            this.warn('添加车位到引导屏失败!');
+          };//
+
+
+        }).catch((error) => {
+          //console.log(error);
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+
+      },
+      deleteScreenCarControl(url,date){//刪除引导屏幕控制的车位;
+
+        var params = new URLSearchParams();
+        let getScreenCarUrl=this.$Api+'/GOSSystem/screenCarposList';
+        let postDate={
+          user_id : "beefind001",
+          build_id : this.$BuildId,
+          floor_id : this.floorId,
+          screen_id : this.choseScreenId
+        };
+
+        for(let i in date){
+          //console.log(JSON.stringify(date[i]));
+          params.append(i,JSON.stringify(date[i]));
+        };
+
+        this.$http.post(
+          url,
+          params,
+          {
+            timeout:2000,
+            headers:{
+              'Content-Type':'application/x-www-form-urlencoded'
+            }
+
+          }).then((response) => {
+          console.log(response);
+          //获取屏幕ID之后的逻辑处理
+          //response.data;
+          if(response.data.result=='1'){
+            /*
+            * 删除车位成功!
+            * 1,刷新车位引导屏幕列表;
+            * 2,更新地图引导屏幕控制车位
+            */
+            this.getControlCarList(getScreenCarUrl,postDate);//
+            //根据获取到的引导屏控制车位列表，找到添加的引导屏;
+            let refreshCotrolCar=this.controlCarList.filter(function (val) {
+              return val.index==date.index;
+            });
+            //刷新地图的状态;
+            console.log(refreshCotrolCar);
+            module.screenCarColor(refreshCotrolCar,refreshCotrolCar.carColor);
+
+          }else{
+            //获取数据失败!
+            this.warn('删除车位到引导屏失败!');
+          };//
+
+
+        }).catch((error) => {
+          //console.log(error);
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+
+      },
+      showCarList(date){//点击引导屏幕列表获取相关信息
+        let callDate;
+        let screenId;
+        let postDate;
+        if(date){
+           callDate =JSON.parse(date);
+           screenId=callDate.screen_id;
+           this.choseScreenId=callDate.screen_id;
+           postDate={
+            user_id : "beefind001",
+            build_id : this.$BuildId,
+            floor_id : this.floorId,
+            screen_id : screenId
+          };
+        };
+
+        console.log(callDate);
+        //点击获取获取引导屏幕数据后做以下几步操作:
+        //1.1请求获取引导屏幕管理的车位;
+        //1.2在地图上绘制出引导屏幕的图标；
+
+         //1.1
+         let url=this.$Api+'/GOSSystem/screenCarposList';
+
+
+         if(screenId){
+           //1.2
+           // module.addScreen(callDate);
+           //this.getControlCarList(url,postDate);
+
+           //模拟的数据;
+           //console.log(this.screenControlCar);
+           //console.log(this.filterControlCarList(this.screenControlCar));
+           //this.controlCarList=this.screenControlCar;
+
+         };
+
+      },
+      choseScreen(val){//获取点击屏幕的
+        console.log(val);
+        this.addScreenCarArr=[];
+        module.screenCarColor(val,val.carColor);
+        //1.1获取对应管理的车位数，以及车区颜色;
+        //1.2根据获取到的车位数，找到对应的车位，并对其绘制颜色(其余的颜色为灰色统一);
+        //地图部分需要做个函数(:为选中区域绘制颜色)function(a,b){}(a:选择的车位-传参,b:所有的车位;);
+        //this.changeCarColor(val,)这个方法是map的方法;
+      },
+      filterPost(arr){//这个过滤的数据是添加的
+        let postData={};
+            postData.user_id='beefind001';
+            postData.build_id=arr[0].build_id;
+            postData.floor_id=arr[0].floor_id;
+            postData.screen_id=this.choseScreenId;
+            postData.index=arr[0].index;
+            postData.add_carpos=[];
+            //接取数组里的数据，并返回新的数组;
+            arr.forEach(function (val,index,arr) {
+              let addSon={};
+                 addSon.carpos_name=val.carNum;
+                 addSon.carpos_gid=val.carUID;
+                 addSon.carpos_areaID=val.carArea;
+              postData.add_carpos.push(addSon);
+            });
+            //
+            return  postData;
+      },
+      filterDeletePost(val){//这个过滤的数据是删除的
+        let postData={};
+        postData.user_id='beefind001';
+        postData.build_id=val.build_id;
+        postData.floor_id=val.floor_id;
+        postData.screen_id=this.choseScreenId;
+        postData.index=val.index;
+        postData.delete_carpos=[];
+        //接取数组里的数据，并返回新的数组;
+        let deleCar={};
+            deleCar.carpos_name=val.carNum;
+            deleCar.carpos_gid=val.carUID;
+            deleCar.carpos_areaID=val.carArea;
+        postData.delete_carpos.push(deleCar);
+        //
+        return  postData;
+      },
+      addScreenCar(){//添加引导屏控制的车位数据;
+        /*
+        * 1.0过滤数据(得到要post的数据)
+        * 1.1发送post请求;
+        * */
+        //1.0( 没选车位?提示:(first:过滤;second:post) );
+        console.log(this.addScreenCarArr);
+        let postData;
+        let url=this.$Api+'/GOSSystem/addCarposToScreen';
+        if(this.addScreenCarArr.length>=1){
+          postData=this.filterPost(this.addScreenCarArr);//1.0
+          //console.log(postData);
+          this.addScreenCarControl(url,postData);//1.1
+
+
+        }else{
+          this.warn('请选择所要添加的车位!');
+        };
+        //this.addScreenCarControl(url,date);1.1
+
+      },
+      cancelAdd(){//取消添加;
+        /*
+        * 1.0恢复按钮状态;
+        * 1.1回复地图的状态;
+        * 1.3清空选中的车位;
+        * */
+        this.batchAdd=!this.batchAdd;
+        this.addScreenCarArr.forEach(function (val,index,arr) {
+          val.setCarColor('#969696');
+        });//
+        this.addScreenCarArr=[];
+
+      },
+      filterFeature(data){//往数组中添加不存在的要素;
+        //
+        let that=this;
+        //console.log(data);
+        let fDate = data;
+        //
+        let arr=that.addScreenCarArr;
+        function checkAdult(arr){
+          return arr == fDate;
+        };
+        //
+        if(that.addScreenCarArr.length<=0){
+          that.addScreenCarArr.push(fDate);
+        }else{
+
+          if(!that.addScreenCarArr.some(checkAdult)){
+            that.addScreenCarArr.push(fDate);
+          };
+
+        };//
+        console.log(that.addScreenCarArr);
+
+      },
+      deleteCar(){//刪除引导屏控制的车位;
+        /*
+        * 1.0隐藏弹框;
+        * 1.1获取的数据整理
+        * 1.2发送POst请求，删除车位要素;
+        * 1.3刷新引导屏幕列表;
+        * 1.4刷新地图;
+        * */
+        this.popupLayer.setPosition(undefined);//1.0
+        //console.log(this.featureDate);
+        let postDate=this.filterDeletePost(this.featureDate);//1.1
+        let deleteCarUrl=this.$Api+'/GOSSystem/deleteCarposFromScreen';
+        console.log(postDate);
+        this.deleteScreenCarControl(deleteCarUrl,postDate);
+      }
+
+
+
+
+
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  .par-state{
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    /*border: 1px solid #FF0000;*/
+    .state-one{
+      order: 1;
+      overflow-y: auto;
+      flex: 2 0 auto;
+      border-radius: 3px;
+      background: #fff;
+      margin-right: 10px;
+      display: flex;
+      flex-direction: column;
+      /*border: 1px solid #ff3b52;*/
+      .state-top{
+        flex: 1 0 auto;
+        align-items: center;
+        display: flex;
+        align-self: center;
+        /*border:1px solid #00FF00;*/
+        .state-round{
+          text-align: center;
+          line-height: 160px;
+          color: #fff;
+          font-size: 36px;
+          background: linear-gradient(180deg, #fdada2 0px, #ff999d 100%) center center / cover;
+          border-radius: 50%;
+          width: 160px;
+          height: 160px;
+          /*border: 1px solid #ff3b52;*/
+        }
+        .state-box{
+          height: 9px;
+          border-radius: 10px;
+          width: 100px;
+          margin: 0 auto;
+          -webkit-box-shadow: 0px 10px 10px #ffc4c8;
+          box-shadow: 0px 21px 25px #ffc4c8;
+          position: relative;
+          top: -15px;
+          /* z-index: 111; */
+        }
+      }
+      .state-bottom{
+        flex: 5 0 auto;
+        /*border:1px solid #00FF00;*/
+        .collapse{
+          /*width: 80%;*/
+          //max-width: 300px;
+          width: 430px;
+          margin: auto;
+          height: auto;
+          /*max-width: 290px;*/
+          margin-top: 5%;
+          /*margin-left: 10%;*/
+          background: #4D4D4D;
+          //border:1px solid #ff0000;
+          max-height: 380px;
+          overflow-y: auto;
+          .collapseShow{
+            border:1px solid #cccccc;
+            height: 35px;
+            line-height: 35px;
+          }
+          .screenList{
+            width: 100%;
+            text-align: center;
+            //border:1px solid #0000ff;
+            .carScreenList{
+              height: auto;
+              margin-bottom: -25px;
+              /*border: 1px solid #ff3b52;*/
+              border: 0.5px solid #d3d3d3;
+              .carScreenListItem{
+                width: 100%;
+                height: auto;
+                margin: 0px;
+                min-height: 35px;
+                text-align: left;
+                /*border: 1px solid #0000ff;*/
+                border-bottom:0.5px solid #cccccc;
+                display: inline-block;
+                position: relative;
+                vertical-align: middle;
+                .screenIndex{
+                  width: 20%;
+                  position: absolute;
+                  border-right: 1px solid #cccccc;
+                  top: 0px;
+                  bottom: 0px;
+                  text-align: center;
+                  margin: auto;
+                  .screenIndexSon{
+                    position: relative;
+                    top: 35%;
+                  }
+                }
+                .screenIndex:active{
+                  color: hotpink;
+                }
+                .screenCar{
+                  /*display: inline;*/
+                  width: 80%;
+                  /*max-width: 200px;*/
+                  float: left;
+                  height: auto;
+                  text-align: left;
+                  position: relative;
+                  left: 20%;
+                  /*border:1px solid #ff0000;*/
+                  span{
+                    width: 60px;
+                    height: 26px;
+                    line-height: 26px;
+                    text-align: center;
+                    color: white;
+                    border-radius: 30px;
+                    margin: 3px;
+                    display: inline-block;
+                  }
+                }
+
+              }
+            }
+          }
+
+        }
+
+      }
+    }
+    .state-tor{
+      order: 9;
+      border-radius: 3px;
+      background: #fff;
+      flex: 9 0 auto;
+      text-align: center;
+      position: relative;
+      /*border:1px solid #ff3b52;*/
+      .the-map{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        /*border:1px solid #ff3b52;*/
+      }
+      .button{
+        position: fixed;
+        right: 5px;
+        float: right;
+        width: 10%;
+        height: 50px;
+        line-height: 50px;
+        /*border:1px solid black;*/
+      }
+      .buttonSon{
+        /*border:1px solid #ff0000;*/
+        text-align: center;
+        .sonbt{
+          /*border:1px solid #00FF00;*/
+        }
+      }
+      #floorUl li{
+        width: 35px;
+        height: 35px;
+        overflow: hidden;
+      }
+      #floor{
+        /*border: 1px solid #ff0000;*/
+        width: 35px;
+        height: 35px;
+        overflow: hidden;
+        position: absolute;
+        bottom: 200px;
+
+      }
+      .up{
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        text-align: center;
+        /*border:1px solid red;*/
+        position: absolute;
+        right: 20px;
+        bottom:235px;
+        z-index: 2010;
+      }
+      .down{
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        text-align: center;
+        /*border:1px solid red;*/
+        position: absolute;
+        right: 20px;
+        bottom:165px;
+        z-index: 2010;
+      }
+      .map-button{
+        position: absolute;
+        top: 50%;
+        right: 0px;
+        height: 58px;
+        width: 58px;
+        border-radius: 50%;
+        transform: translate(-58%, -36%);
+        color: #745fea;
+        background: #ded8fe;
+        border: 1px solid #745fea;
+        transition: ease-in-out 0.4s;
+        &:hover{
+          background: #745fea;
+          color: #fff;
+          box-shadow: 0px 0px 5px #745fea;
+        }
+      }
+    }
+  }
+  #popHeader{
+    text-align: center;
+  }
+
+  #popup{
+    width: 154px;
+    height: 120px;
+    position: absolute;
+    z-index: 2015;
+    border:1px solid #7460ee;
+    border-radius: 3px;
+    overflow: hidden;
+    /*-webkit-filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));*/
+  }
+  .popDiv{
+    position: relative;
+    width: 154px;
+    height: 30px;
+    line-height: 30px;
+    top: 0px;
+    /*line-height: 30px;*/
+    border: 0.5px solid #cccccc;
+    background: white;
+    font-size: 8px;
+    overflow-y: hidden;
+    text-align: center;
+  }
+  .popBt{
+    height: 21px;
+    width: 35%;
+    line-height: 0px;
+    /*border:1px solid #ffcc66;*/
+    /*margin-bottom: 10px;*/
+  }
+  #imgButton{
+    float: right;
+    line-height: 5px;
+    font-size: 9px;
+  }
+  #imgButton:active{
+    background: #cccccc;
+  }
+  .popDiv img{
+    margin-left: 5px;
+    width: 14px;
+  }
+  #i-error{
+    float: right;
+    line-height: 30px;
+  }
+  .imgSrcDialog{
+    /*border: 1px solid #ff3b52;*/
+  }
+  .map-img{
+    width: 100%;
+    text-align: center;
+    /*border: 1px solid #ff3b52;*/
+  }
+  .map-img img{
+    width: 100%;
+    display: inline-block;
+    /*border:1px solid #ff3b52;*/
+  }
+</style>

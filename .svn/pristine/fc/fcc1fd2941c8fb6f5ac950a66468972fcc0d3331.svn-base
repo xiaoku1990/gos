@@ -1,0 +1,89 @@
+<template>
+
+  <div class="main-header">
+    <ul>
+      <li>首页</li>
+      <li><i class="el-icon-arrow-right"></i></li>
+      <li v-if="siderNumber>=7&&siderNumber<=8">视频监控<i class="el-icon-arrow-right"></i></li>
+
+      <li v-if="siderNumber>8">系统管理</li>
+      <li v-if="siderNumber>8">
+        <i class="el-icon-arrow-right"></i></li>
+      <li style="color: #6b5ad8" >{{sidebarName}}</li>
+
+    </ul>
+    <!---->
+
+
+  </div>
+
+</template>
+
+<script>
+    //import {add} from "../../store/actions";//利用actions 调用mutations 中的方法重大失误
+    //import  { dialogMsg } from '@/components/modules/dialogMsg'
+    import  {mapActions} from 'vuex'
+    export default {
+        name: "headers",
+        data(){
+          return{
+            routerStor:'车位状态图'
+          }
+        },
+      // computed: mapState(["todos"]),
+      computed:{
+        sidebarName(){
+          return this.$store.state.sidebarName
+        },
+        sidebarChildName(){
+          return this.$store.state.sidebarName
+        },
+        siderNumber(){
+          return this.$store.state.sidebarNumber
+        }
+      },
+      mounted(){
+
+
+      },
+      //引入vue的方法///
+      methods:{
+        ...mapActions([
+          'add'
+        ])
+
+
+      },
+    }
+</script>
+
+<style scoped lang="scss">
+.main-header{
+  width: 100%;
+  display: flex;
+  border-top:1px solid #ccc ;
+  background: #f6f7fb;
+  ul{
+    float: left;
+    width: 100%;
+    padding-left: 22px;
+    font-size: 12px;
+    /*border:1px solid #ff0000;*/
+    li{
+
+      border-radius:3px ;
+      float: left;
+      padding: 12px 0px;
+      color: #666;
+      margin-right: 16px;
+      /*border:1px solid #00FF00;*/
+    }
+    .liRight{
+      float: right;
+      position: relative;
+      right: 20px;
+    }
+  }
+}
+
+</style>

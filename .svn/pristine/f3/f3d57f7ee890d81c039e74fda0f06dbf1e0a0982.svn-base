@@ -1,0 +1,350 @@
+<template>
+  <div class="par-state main-padding">
+    <div class="state-one">
+      <div class="state-top">
+        <!--表格-->
+        <line-chart
+          :dataArray="watChartDate"
+          xField="time"
+          yField="value"
+          xName="小时"
+          yName="w/h"
+        ></line-chart>
+      </div>
+      <div class="state-bottom">
+        <bar-chart
+          :dataArray="lightChartDate"
+          xField="time"
+          yField="value"
+          xName="小时"
+          yName="档位"
+          valueMax="7"
+        ></bar-chart>
+      </div>
+    </div>
+    <div class="state-tor">
+      <div class="state-top">
+        <floor-stater
+          :floorData="floorList"
+          :stateData="stateData"
+          @onLastFloor="nextFloor"
+          @onNextFloor="nextFloor"
+        ></floor-stater>
+      </div>
+      <div class="state-bottom">
+
+        <el-col :span="24">
+          <el-table
+            :data="tableData"
+            style="width:100%;">
+            <el-table-column
+              label="设备编号"
+              prop="device_id"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              label="温度/℃"
+              prop="device_temp"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              label="照度"
+              prop="device_lightLevel"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+          </el-table>
+          <div class="block">
+            <el-pagination
+              @current-change="handleCurrentChange"
+              :current-page.sync="userTableQuery.page"
+              :page-size="tablePageSize"
+              :page-count="tablePageTotal"
+              layout="prev, pager, next, slot, jumper">
+              <span class="el-pagination__total page-count-padding">共{{tablePageTotal}}页</span>
+            </el-pagination>
+          </div>
+        </el-col>
+      </div>
+    </div>
+
+  </div>
+</template>
+
+<script>
+  import {common} from '../../common/js/common.js'
+  import {secondServe} from '../../common/js/secondServe.js'
+  import lineChart from '@/components/modules/charts/lineChart'
+  import barChart from '@/components/modules/charts/barChart'
+  import floorStater from '@/components/modules/other/floorState'
+
+  export default {
+    name: "environment",
+    components: {lineChart, barChart, floorStater},
+    data() {
+      return {
+        stateData: [
+          {name: '总设备数', numberSize: '加载中...', back: 'fd435a'},
+          {name: '照明能耗', numberSize: '加载中...', back: '84e247'},
+          {name: '照明温度', numberSize: '加载中...', back: 'ffbb44'},
+          {name: '照明挡位', numberSize: '加载中...', back: '4880ff'}
+        ],
+        floorList: [{floor_name: '...'}],
+        watChartDate: [{}],
+        lightChartDate: [{}],
+        tableData: [],  //待加载
+        tablePageTotal: 0,
+        tablePageSize: common().config.smallPageItemSize,
+        userQuery: {
+          build_id: this.$BuildId,
+        },
+        userTableQuery: {
+          page: 1
+        },
+        requestUrl: {
+          floorAreaListUrl: common().url.floorAreaList,
+          lightManagerUrl: common().url.lightManager,
+          lightDeviceListUrl: common().url.lightDeviceList
+        }
+      }
+    },
+    created() {
+      this.getFloorAreaList();
+    },
+    mounted() {
+    },
+    methods: {
+      lastFloor(index) {
+        this.userQuery.floor_id = this.floorList[index].floor_id;
+        console.log(`触发 floor ${this.userQuery.floor_id}, index: ${index}`);
+        this.queryData();
+        this.userTableQuery.page = 1;
+        this.queryTableData();
+      },
+      nextFloor(index) {
+        this.userQuery.floor_id = this.floorList[index].floor_id;
+        console.log(`触发 floor ${this.userQuery.floor_id}, index: ${index}`);
+        this.queryData();
+        this.userTableQuery.page = 1;
+        this.queryTableData();
+      },
+      //分页
+      handleCurrentChange(val) {
+        console.log(`当前页: ${val}`);
+        this.queryTableData();
+      },
+      getFloorAreaList() {
+        let formData = new FormData();
+        for (let i in this.floorAreasQuery) {
+          formData.append(i, this.floorAreasQuery[i]);
+        }
+        this.$http.post(this.$Api + this.requestUrl.floorAreaListUrl, formData, {dataType: 'json'})
+          .then(data => {
+            if (data.status == 200) {
+              let jsonData = data.data;
+              if ((typeof(jsonData.result) !== 'undefined') && (jsonData.result == 1)) {
+                this.floorList = jsonData.floor_list;
+                this.userQuery.floor_id = this.floorList[0].floor_id;
+                this.queryData();
+                this.queryTableData();
+                secondServe(this, 'lighting', () => {
+                  this.queryData();
+                }, 5);
+              } else {
+                alert('获取floorAreaList失败1');
+              }
+            }
+            else {
+              alert('获取floorAreaList失败2');
+            }
+          })
+          .catch((error) => {
+            this.$notify({
+              title: 'ERROR',
+              message: `${error}`,
+              duration: 2000,
+              type: 'error'
+            });
+          });
+      },
+      queryData() {
+        let formData = new FormData();
+        for (let i in this.userQuery) {
+          formData.append(i, this.userQuery[i]);
+        }
+        // this.watChartDate = [{}];
+        // this.lightChartDate = [{}];
+        console.log(`查询字段: ${ JSON.stringify(this.userQuery) }`);
+        this.$http.post(this.$Api + this.requestUrl.lightManagerUrl, formData, {dataType: 'json'})
+          .then(data => {
+            if (data.status == 200) {
+              let jsonData = data.data;
+              if ((typeof(jsonData.result) !== 'undefined') && (jsonData.result == 1)) {
+                console.log(`结果返回: ${ JSON.stringify(jsonData) }`);
+                if(jsonData.param.wat_chart.length) {
+                  jsonData.param.wat_chart.pop();
+                  this.watChartDate = jsonData.param.wat_chart.reverse();
+                }
+                if(jsonData.param.light_chart.length) {
+                  jsonData.param.light_chart.pop();
+                  this.lightChartDate = jsonData.param.light_chart.reverse();
+                  this.lightChartDate.forEach(function(item) {
+                    item.value /= 100;
+                  });
+                }
+                this.stateData[0].numberSize = jsonData.param.all_device;
+                if (jsonData.param.light_wat < 1000) {
+                  this.stateData[1].numberSize = jsonData.param.light_wat + ' w/h';
+                } else {
+                  this.stateData[1].numberSize = Math.round(parseInt(jsonData.param.light_wat) / 10) / 100 + ' kw/h';
+                }
+                this.stateData[2].numberSize = jsonData.param.temperature + ' ℃';
+                this.stateData[3].numberSize = jsonData.param.light_level / 100;
+              } else {
+                alert('获取lightManager失败1');
+              }
+            }
+            else {
+              alert('获取lightManager失败2');
+            }
+          })
+          .catch((error) => {
+            this.$notify({
+              title: 'ERROR',
+              message: `${error}`,
+              duration: 2000,
+              type: 'error'
+            });
+          });
+      },
+      queryTableData() {
+        let formData = new FormData();
+        $.extend(this.userTableQuery, this.userQuery);  //userQuery 浅拷贝进 userTableQuery
+        for (let i in this.userTableQuery) {
+          formData.append(i, this.userTableQuery[i]);
+        }
+        this.tableData = [];
+        console.log(`查询字段: ${ JSON.stringify(this.userTableQuery) }`);
+        this.$http.post(this.$Api + this.requestUrl.lightDeviceListUrl, formData, {dataType: 'json'})
+          .then(data => {
+            if (data.status == 200) {
+              let jsonData = data.data;
+              if ((typeof(jsonData.result) !== 'undefined') && (jsonData.result == 1)) {
+                console.log(`结果返回: ${ JSON.stringify(jsonData) }`);
+                this.tableData = jsonData.light_list;
+                this.tablePageTotal = jsonData.total_page;
+              } else {
+                alert('获取lightDeviceList失败1');
+              }
+            }
+            else {
+              alert('获取lightDeviceList失败2');
+            }
+          })
+          .catch((error) => {
+            this.$notify({
+              title: 'ERROR',
+              message: `${error}`,
+              duration: 2000,
+              type: 'error'
+            });
+          });
+      }
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  .par-state {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    .state-one {
+      order: 5;
+      flex: 5 0 auto;
+      width: 50%;
+      margin-right: 10px;
+      display: flex;
+      height: 100%;
+      position: relative;
+      flex-direction: column;
+      .state-top {
+        flex: 5 0 auto;
+        display: flex;
+        position: relative;
+        flex-direction: column; //上下
+        margin-bottom: 10px;
+        background: #fff;
+        border-radius: 3px;
+      }
+      .state-bottom {
+        position: relative;
+        flex: 5 0 auto;
+        display: flex;
+        background: #fff;
+        border-radius: 3px;
+        flex-direction: column; //上下
+      }
+    }
+    .state-tor {
+      order: 5;
+      border-radius: 3px;
+      flex: 5 0 auto;
+      width: 50%;
+      text-align: center;
+      position: relative;
+      .state-top {
+        flex: 5 0 auto;
+        align-items: center;
+        display: flex;
+        position: relative;
+        overflow-y: auto;
+        flex-direction: row;
+        margin-bottom: 10px;
+        flex-direction: column;
+        position: relative;
+        background: #fff;
+        height: calc(50% - 5px);
+      }
+      .state-bottom {
+        flex: 5 0 auto;
+        background: #fff;
+        position: relative;
+        height: calc(50% - 5px);
+        display: flex;
+        overflow-y: auto;
+        .block {
+          margin: 10px 0px;
+        }
+      }
+    }
+  }
+
+  .next-layer {
+    position: absolute;
+    top: 50%;
+    right: 0px;
+    height: 58px;
+    width: 58px;
+    border-radius: 50%;
+    transform: translate(-58%, -36%);
+    color: #745fea;
+    background: #ded8fe;
+    border: 1px solid #745fea;
+    transition: ease-in-out 0.4s;
+    &:hover {
+      background: #745fea;
+      color: #fff;
+      box-shadow: 0px 0px 5px #745fea;
+    }
+  }
+</style>

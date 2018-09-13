@@ -1,0 +1,502 @@
+<template>
+  <div>
+    <!--<p class="back-nav">-->
+
+    <div class="the-car-query">
+      <div class="state-from" style="display: flex">
+        <el-form ref="userQuery" :model="userQuery" label-width="100px"  style="width: 100%">
+          <el-form-item label="搜索关键字" style="width: 18%;float: left">
+            <el-col  :span="20">
+              <el-input
+                placeholder="关键字"
+                prefix-icon="el-icon-search"
+                v-model="userQuery.search"
+                size="small"
+                clearable   class="input-round">
+              </el-input>
+            </el-col>
+          </el-form-item>
+          <el-form-item label="日期筛选" class="data-item" >
+            <el-col :span="11">
+              <el-date-picker size="small" class="input-round" type="date" placeholder="选择日期" v-model="userQuery.date" style="width: 100%;"></el-date-picker>
+            </el-col>
+            <el-col class="line" :span="1" style="text-align: center;">-</el-col>
+            <el-col :span="11">
+              <el-date-picker size="small" class="input-round" type="date" placeholder="选择日期" v-model="userQuery.date1" style="width: 100%;"></el-date-picker>
+            </el-col>
+          </el-form-item>
+          <el-form-item >
+            <el-button type="primary"  size="small" icon="el-icon-search"  round  @click="theCarClick('userQuery')"></el-button>
+            <el-button type="danger"  size="small"  round  @click="exports(userQuery)">导出</el-button>
+          </el-form-item>
+          <!--<el-form-item >-->
+            <!--<el-button type="primary"  size="small" icon="el-icon-search"  round  @click="exports(userQuery)">导出</el-button>-->
+          <!--</el-form-item>-->
+        </el-form>
+      </div>
+      <!---->
+    </div>
+    <div class="main-car-padding stor-var">
+      <div class="sensitive-row">
+        <el-table
+          :data="tableData"
+          height="100%"
+          style="width: 100%;">
+          <el-table-column
+            prop="name"
+            empty-text="暂无数据"
+            label="姓名"
+            align="center"
+            width="">
+          </el-table-column>
+          <el-table-column
+            prop="department"
+            empty-text="暂无数据"
+            label="部门"
+            align="center"
+            width="">
+          </el-table-column>
+          <el-table-column
+            prop="dataTime"
+            empty-text="暂无数据"
+            label="时间"
+            align="center"
+            width="">
+          </el-table-column>
+          <el-table-column
+            prop="details"
+            empty-text="暂无数据"
+            label="详情"
+            align="center"
+            width="">
+          </el-table-column>
+          <el-table-column
+            align="center"
+            label="操作"
+            width="300px">
+            <template slot-scope="scope">
+              <el-button size="mini" round  @click="detailsClick(scope.row,$event)" ><i class="back-i-blue"></i>查看</el-button>
+              <el-button size="mini" round  @click="handleClick(scope.row,$event)" ><i class="back-i-bulr"></i>编辑</el-button>
+              <el-button  size="mini" round @click="backDelete(scope.row,$event)" type="info"><i class="back-i-red"></i>删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="block">
+          <el-pagination
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            :current-page.sync="currentPage"
+            :page-size="5"
+            layout="total, prev, pager, next,jumper"
+            :total="20">
+          </el-pagination>
+        </div>
+      </div>
+    </div>
+
+    <!--新增-->
+    <el-dialog
+      :title="nawTitle"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="newBackWhite"
+      width="30%"
+      top="35vh"
+      :before-close="handleClose">
+      <el-form ref="newFrom" :model="newFrom" label-width="80px">
+        <el-col :span="12">
+          <el-form-item label="人员名称">
+            <el-input v-model="newFrom.name"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12"><el-form-item label="所属部门">
+          <el-input v-model="newFrom.names"></el-input>
+        </el-form-item>
+        </el-col>
+        <el-col :span="12"><el-form-item label="登陆名">
+          <el-input v-model="newFrom.landingName"></el-input>
+        </el-form-item>
+        </el-col>
+        <el-col :span="12"><el-form-item label="登陆密码">
+          <el-input v-model="newFrom.landingPwd"></el-input>
+        </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="人员状态">
+            <el-radio-group v-model="newFrom.resource">
+              <el-radio label="启用"></el-radio>
+              <el-radio label="不启用"></el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="newBackWhite = false" type="text">取 消</el-button>
+        <el-button type="primary" size="small" round @click="newBackWhiteClick(newFrom)">确 定</el-button>
+      </span>
+    </el-dialog>
+    <!--编辑-->
+    <el-dialog
+      title="敏感操作编辑"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="centerDialogVisible"
+      width="30%"
+    >
+      <el-form ref="form" :model="form" label-width="80px">
+        <el-col :span="24"><el-form-item label="姓名">
+          <el-input v-model="form.name"></el-input>
+        </el-form-item>
+        </el-col>
+        <el-col :span="24"><el-form-item label="部门">
+          <el-input v-model="form.department"></el-input>
+        </el-form-item>
+        </el-col>
+        <el-col :span="24"><el-form-item label="时间">
+          <el-input v-model="form.dataTime"></el-input>
+        </el-form-item>
+        </el-col>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+      <el-button right @click="centerDialogVisible = false" type="text">取 消</el-button>
+      <el-button type="primary" :loading="loading" @click="onSubmit(form)">确 定</el-button>
+      </span>
+    </el-dialog>
+    <!--查看-->
+    <el-dialog
+      title="查看详情"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="detailsDialog"
+      width="50%"
+    >
+      <el-row>
+        <el-col :span="12" style="margin-bottom: 12px">
+          <span>姓名</span>：<span>{{detailsFrom.name}}</span>
+        </el-col>
+        <el-col :span="12" style="margin-bottom: 12px">
+          <span>部门</span>：<span>{{detailsFrom.department}}</span>
+        </el-col>
+        <el-col :span="12" >
+          <span>时间</span>：<span>{{detailsFrom.dataTime}}</span>
+        </el-col>
+        <el-col :span="12">
+          <span>详情</span>：<span>{{detailsFrom.details}}</span>
+        </el-col>
+      </el-row>
+      <span slot="footer" class="dialog-footer">
+      <el-button right @click="detailsDialog = false">关闭</el-button>
+      </span>
+    </el-dialog>
+  </div>
+
+</template>
+
+<script>
+  export default {
+    name: "hoursers",
+    data(){
+      return{
+        tableShow:true,
+        userQuery:{
+          date1: '',
+          date2: '',
+          search:''
+        },
+        tableData: [{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+        },{
+          name:'张三',
+          department:'采购部',
+          dataTime:'2017.11.20 12:00:00',
+          details: '添加黑名单：京A.323232',
+          floor:'1B',
+          carArea:'A',
+          carPositon:'AO88',
+          carCard:'京 A3023'
+        }],
+        filts:[
+
+        ],
+        detailsDialog:false,
+        tableShow:true,
+        centerDialogVisible:false,
+        loading:false,
+        newBackWhite:false,
+        nawTitle:'',
+        newBackInput:'',
+        currentPage: 1,
+        form:{
+        },
+        newFrom:{
+          treeId:1,
+          name:'总裁办',
+          treeIds:2,
+          names:'研发部',
+          landingPwd:'12345',
+          landingName:'admin'
+        },
+        detailsFrom:{}
+      }
+    },
+    methods: {
+      //查询
+      theCarClick(formName) {
+        this.$refs[formName].validate((valid) => {
+          if (valid) {
+           console.log('我查询了',this.userQuery)
+          } else {
+            return false;
+          }
+        });
+      },
+      exports(item){
+        console.log('导出',item)
+      },
+      //分页
+      handleSizeChange(val) {
+        console.log(`每页 ${val} 条`);
+      },
+      handleCurrentChange(val) {
+        console.log(`当前页: ${val}`);
+      },
+      //授权
+      detailsClick(row,event){
+        this.detailsDialog=true;
+        this.detailsFrom = { //直接赋值可能是因为elenmet 方法把row进行数据绑定了
+          name: row.name,
+          department:row.department,
+          dataTime:row.dataTime,
+          details:row.details,
+        };
+      },
+      detailsClickTrue(){
+        this.loading=true;
+        setTimeout(()=>{
+          this.loading=false;
+          this.detailsDialog=false;
+          this.$notify({
+            title: '成功',
+            message: '已经完成修改',
+            duration:1000,
+            type: 'success'
+          });
+        },500)
+      },
+      //查看
+      handleClick(row,event) {
+        event.cancelBubble = true;
+        this.centerDialogVisible=true;
+        this.form = { //直接赋值可能是因为elenmet 方法把row进行数据绑定了
+          name: row.name,
+          department:row.department,
+          dataTime:row.dataTime,
+          details:row.details,
+        };
+      },
+      //编辑确定
+      onSubmit(form) {//导致row会全局引用
+        this.loading=true;
+        setTimeout(()=>{
+          this.loading=false;
+          this.centerDialogVisible=false;
+          this.$notify({
+            title: '成功',
+            message: '已经完成修改',
+            duration:1000,
+            type: 'success'
+          });
+        },500)
+        console.log(form);
+      },
+      //新增
+      newBack(item){
+        this.nawTitle='新增人员信息'
+        this.newBackWhite =true
+      },
+      newBackWhiteClick(newFrom){
+        console.log(newFrom)
+        this.newBackWhite =false
+      },
+      handleClose(done) {
+        this.nawTitle='',
+          this.newBackWhite =false
+      },
+
+      //删除
+      backDelete(item){
+        console.log(item)
+        if(item){
+          this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
+            this.$message({
+              type: 'success',
+              message: '删除成功!'
+            });
+          }).catch(() => {
+            console.log('取消删除');
+          });
+        }
+      }
+
+    },
+    mounted(){
+
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  @import "../../../style/variables.scss";
+  .back-nav {
+    background: #fff;
+    padding: 12px 20px;
+    margin: 0px;
+    margin-bottom: 20px;
+  }
+  .sensitive-row{
+    display: flex;
+    height: calc(100% - 120px);
+    /*width: calc(100% - 226px);*/
+    width: 100%;
+    flex-direction: column;
+    .el-table{
+      flex: 6 0 auto;
+    }
+    .back-title{
+      flex: 1 0 auto;
+      float: left;
+      text-align: right;
+      line-height: 30px;
+      width: 100%;
+      span{
+        float: left;
+        i{
+          display: inline-block;
+          height: 18px;
+          float: left;
+          background: #7362e4;
+          width: 3px;
+          margin-right: 6px;
+          position: relative;
+          top: 6px;
+        }
+      }
+    }
+    .block{
+      flex: 1 0 auto;
+      text-align: center;
+      margin: 20px 0px;
+    }
+  }
+
+  .back-i-bulr{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    border-radius: 25px;
+    margin-right:6px;
+    background: $green;
+  }
+  .back-i-red{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    margin-right:6px;
+    border-radius: 25px;
+    background: $red;
+  }
+  .back-i-blue{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    margin-right:6px;
+    border-radius: 25px;
+    background: $blue;
+  }
+  //弹性布局
+  .the-car-query{
+    background: #fff;
+    margin-bottom: 20px;
+    display: flex;
+    .state-from{
+      display: flex;
+      height: 60px;
+      padding: 10px 5px 10px 0px;
+      float: left;
+      background: #fff;
+      width: 100%;
+      border-radius: 3px;
+      .data-item{
+        float: left;
+        width: 50%;
+      }
+    }
+  }
+</style>

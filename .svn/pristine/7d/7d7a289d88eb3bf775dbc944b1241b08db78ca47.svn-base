@@ -1,0 +1,703 @@
+<template>
+  <div class="par-state main-padding">
+    <div class="general">
+      <div class="state-from" >
+            <div class="general-nav">
+            过夜时间设置
+            </div>
+            <div class="general-input" >
+              <el-select v-model="select1" placeholder="请选择">
+                <el-option
+                  v-for="item in options1"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value">
+                </el-option>
+              </el-select>
+            </div>
+            <div class="general-input">
+              <el-time-picker
+              v-model="hoursdate"
+              placeholder="任意时间点"  value-format="H" style="width: 100%;">
+
+              </el-time-picker>
+            </div>
+            <div style="line-height: 40px;color:#cccccc;">
+              ___
+            </div>
+            <div class="general-input">
+              <el-select v-model="select2" placeholder="请选择">
+                <el-option
+                  v-for="item in options2"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value">
+                </el-option>
+              </el-select>
+            </div>
+            <div class="general-input">
+              <el-time-picker
+               v-model="hoursdate1"
+               placeholder="任意时间点"  value-format="H" style="width: 100%;">
+              </el-time-picker>
+            </div>
+            <div class="general-input">
+              <el-button type="primary" round style="width: 100%;" @click="setOverNight()">确认</el-button>
+            </div>
+      </div>
+      <div class="state-from" >
+        <div class="general-nav">
+          超时停车时间设置
+        </div>
+        <div class="general-input">
+          <el-input
+            placeholder="    (单位:小时)"
+            v-model="inputData"
+            size="small"
+            type="tel"
+            clearable   class="input-round">
+          </el-input>
+        </div>
+        <div class="general-input">
+          <el-button type="primary" round style="width: 100%;" @click="setOverTime()">确认</el-button>
+        </div>
+
+      </div>
+      <div class="state-from" >
+        <div class="general-nav">
+          推送报警是否开启
+        </div>
+        <div class="general-input">
+            <el-switch
+              v-model="switchTaggle"
+              active-color="#13ce66"
+              @change="taggleSwitch()"
+              inactive-color="#cccccc">
+            </el-switch>
+        </div>
+      </div>
+      <!--内外网切换-->
+      <div class="state-from" >
+        <div class="general-nav">
+          是否启用内网
+        </div>
+        <div class="general-input">
+          <el-switch
+            v-model="switchIn"
+            active-color="#13ce66"
+            @change="taggleIn()"
+            inactive-color="#cccccc">
+          </el-switch>
+        </div>
+      </div>
+      <!---->
+      <div class="state-from" >
+        <div class="general-nav">
+          管理项目
+        </div>
+        <div class="manage-project">
+          <el-select v-model="selectProject" @change="changeProject"  placeholder="请选择项目" style="width: 100%;">
+            <el-option
+              style="display: flex; flex-direction: row; justify-content: space-between;"
+              v-for="item in projects"
+              :key="item.build_id"
+              :label="item.buildName"
+              :value="item.build_id"
+            >
+              <span>{{item.build_id}}</span>
+              <span>{{item.buildName}}</span>
+              <span>{{item.cityName}}</span>
+            </el-option>
+          </el-select>
+        </div>
+      </div>
+      <!---->
+    </div>
+  </div>
+</template>
+
+<script>
+  import  {mapActions} from 'vuex'
+
+  export default {
+    name: "parking-state",
+    data(){
+      return{
+        switchTaggle: false,
+        switchIn: false, // 内网默认关闭(也即使用外网)
+        inputData:'24',
+        select1:'',
+        select2:'',
+        selectProject: 'B0003', // 切换项目默认B0003
+        licence:'', // 获取的licence
+        hoursdate:'',
+        hoursdate1:'',
+        carType:'0',
+        options1:[
+          {
+            value:'Today',
+            label:'当天'
+          }
+        ],
+        options2:[
+          {
+            value:'Today',
+            label:'当天'
+          },
+          {
+            value:'tommorrow',
+            label:'第二天'
+          }
+        ],
+        carTypes:[
+          {
+            label:'当天',
+            value:'0'
+          },
+          {
+            label:'第一天',
+            value:'1'
+          },
+          {
+            label:'第二天',
+            value:'2'
+          },
+        ],
+        period:'0',
+        periods:[
+          {
+            label:'上午',
+            value:'0'
+          },
+          {
+            label:'下午',
+            value:'1'
+          },
+          {
+            label:'晚上',
+            value:'2'
+          }
+        ],
+        carArea:'0',
+        carAreas:[
+          {
+            label:'1层',
+            value:'0'
+          },
+          {
+            label:'B1层',
+            value:'1'
+          },
+          {
+            label:'B2层',
+            value:'2'
+          }
+        ],
+        area:'0',
+        areas:[
+          {
+            label:'A区',
+            value:'0'
+          },
+          {
+            label:'B区',
+            value:'1'
+          },
+          {
+            label:'C区',
+            value:'2'
+          }
+        ],
+        projects:[], // 项目列表
+        net_state: '' // 内网状态（1，内网;2,外网）;
+      }
+    },
+    created(){
+      this.getSetList();
+      //再钩子函数中验证有无切换项目的权限;
+      this.getBuildList();
+      //获取内外网状态
+      this.getNetState();
+    },
+    computed:{
+      switchName(){
+        this.switchTaggle=this.$store.state.activeNote.text;
+        return this.$store.state.activeNote.text;
+      }
+    },
+    mounted(){
+      //console.log(this.$store.state.messagePush);
+      this.switchTaggle = localStorage.getItem('messagePush')==='true';
+      this.switchIn = localStorage.getItem('OnToInNet') === 'true';
+    },
+    methods:{
+      ...mapActions([
+        'add','upDate'
+      ]),
+      /*...mapMutations({
+
+      }),*/
+      taggleSwitch(){
+        //this.$store.commit('upDate',this.switchTaggle);
+        localStorage.setItem('messagePush',this.switchTaggle);
+      },
+      taggleIn(){
+        /*
+        * planA: 通过localStorage;
+        * planB: 通过本地node服务器;
+        * */
+        //console.log(this.$Api);
+        // localStorage.setItem('OnToInNet',this.switchIn);
+        // eventbus.$emit('OnToInNet', this.switchIn);
+        console.log(this.$Api);
+        //planB:
+        if(this.switchIn){
+          // 内网
+          this.net_state = 1;
+          this.setNetState();
+        }else{
+          // 外网
+          this.net_state = 2;
+          this.setNetState();
+        };
+
+      },
+      getSetList(){
+        const url=this.$Api+'/GOSSystem/getGeneralSettingParam';
+        /*const date={
+          user_id:'beefind001',
+          build_id:this.$BuildId
+        };*/
+        var params = new URLSearchParams();
+        params.append('user_id', 'beefind001');
+        params.append('build_id', this.$BuildId);
+        //
+        this.$http({
+          method: 'POST',
+          url: url,
+          data:params
+        }).then(response => {
+
+         //console.log(response);
+          if(response.data.result==1){
+            this.hoursdate=response.data.start_hour;
+            this.hoursdate1=response.data.end_hour;
+            this.select1=response.data.start_day;
+            this.select2=response.data.end_day;
+            this.inputData=response.data.overtime;
+          };//
+
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+
+
+
+      },
+      setOverNight(){
+
+        const url=this.$Api+'/GOSSystem/nightTimeConfig';
+        /*const date={
+
+        };*/
+        var params = new URLSearchParams();
+        params.append('user_id', 'beefind001');
+        params.append('build_id', this.$BuildId);
+        params.append('start_day', this.select1);
+        params.append('start_hour', this.hoursdate);
+        params.append('end_day', this.select2);
+        params.append('end_hour', this.hoursdate1);
+
+         console.log(url);
+        console.log(this.select1+';select2='+this.select2);
+        if(this.select1!=""&&this.select2!=""&&this.hoursdate!=''&&this.hoursdate1!=""){
+
+
+
+         // this.setPost(date,url,'');
+          //---------------
+          this.$http({
+            method: 'POST',
+            url: url,
+            //emulateJSON
+            data:params
+          }).then(response => {
+            //console.log(response);
+          }).catch((error) => {
+            this.$notify({
+              title: 'ERROR',
+              message: `${error}`,
+              duration: 2000,
+              type: 'error'
+            });
+          });
+
+
+
+        }else{
+          this.warn();
+        };
+
+
+      },
+      setOverTime(){
+        const test=999;
+        const url= this.$Api+'/GOSSystem/overTimeConfig';
+        //console.log(url);
+        /*const date={
+          user_id:'beefind001',
+          build_id:this.$BuildId,
+          overtime:this.inputData
+        };*/
+        var params = new URLSearchParams();
+        params.append('user_id', 'beefind001');
+        params.append('build_id', this.$BuildId);
+        params.append('overtime', this.inputData);
+
+        if(this.inputData!=""){
+          if(isNaN(this.inputData)){
+            this.inputData="";
+            this.warn2();
+          }else{
+
+            //---------------
+            this.$http({
+              method: 'POST',
+              url: url,
+              //emulateJSON
+              data:params
+            }).then(response => {
+              //console.log(response);
+            }).catch((error) => {
+              this.$notify({
+                title: 'ERROR',
+                message: `${error}`,
+                duration: 2000,
+                type: 'error'
+              });
+            });
+            //this.setPost(date,url,'');
+
+          };
+        }else{
+          this.warn1();
+        };
+
+
+      },
+      setPost(date,url,urlType){
+
+        var _this=this;
+        var reqData= date;
+        /*
+        * 超时停车设置(时间为小时)
+        * */
+        //---------------
+        this.$http({
+          method: 'POST',
+          url: url,
+          emulateJSON:true,
+          data:JSON.stringify(reqData)
+        }).then(response => {
+          //console.log(response);
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+        //----------------
+
+      },
+      warn(){
+        this.$message({
+          message: '请设置过夜时间!',
+          type: 'warning',
+          center:true
+        });
+      },
+      warn1(){
+        this.$message({
+          message: '请设置停车超时时间!',
+          type: 'warning',
+          center:true
+        });
+      },
+      warn2(){
+        this.$message({
+          message: '输入格式错误!',
+          type: 'warning',
+          center:true
+        });
+      },
+      toast(date){
+        this.$message({
+          message: date,
+          type: 'warning',
+          center:true
+        });
+      },
+      toastSuccess(date){
+        this.$message({
+          message: date,
+          type: 'success',
+          center:true
+        });
+      },
+      changeProject () {
+        /*
+    * 1.0 验证是否可以切换项目;
+    * 1.1 可以切换?1.1.1把获取的licence存到data中;  ;1.1.2请求获取buildID:提示没有权限
+    * 1.2 把获取的buiildID结果赋值给this.projects;
+    * 1.3 当切换项目时，请求设置buildID接口，并根据结果进行提示成功?提示success:false提示;
+    * 1.4 切换成功后，没次登录就会从新获取当前项目;
+    * */
+        console.log(this.selectProject);
+        var _this=this;
+        _this.getBuildSwitchLicence(function () {
+          // 设置当前项目的接口;
+          _this.setBuildID(); //1.3
+        }); //1.0
+      },
+      getBuildList () {
+         // 获取全国项目
+        var params = new URLSearchParams();
+        params.append('cityID', '0000');
+        const url = 'http://139.196.5.153:8080/mapserve/bllist';
+        this.$http({
+          method: 'POST',
+          url: url,
+          data: params
+        }).then(response => {
+          if(response.data.result == 1){
+            //
+            var buildList = [];
+            response.data.response.forEach((val) => {
+               let Obj = {};
+                   Obj.buildName = val.buildingName;
+                   Obj.build_id = val.buildingID;
+                   Obj.city_id = val.cityID;
+                   Obj.cityName = val.cityName;
+                   Obj.address = val.address;
+               buildList.push(Obj);
+            });
+            this.projects = buildList;
+          }else{
+            //
+            this.toast('获取项目列表失败!'); //1.1
+          };
+        }).catch(err => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      getBuildSwitchLicence(callBack) {
+        // 切换项目权限功能;
+        const url=this.$csUrl+'/clientServer/getBuidSwitchLicence';
+        this.$http({
+          method: 'get',
+          url: url
+        }).then(response => {
+          /*
+          * 获取切换项目允许之后的逻辑;
+          * */
+          if(response.data.result == 1){
+            //1.1.1
+            this.licence = response.data.licence;
+            callBack();
+          }else{
+            // 没有权限切换提示;
+            this.toast('当前用户无权限切换项目!'); //1.1
+          };
+
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      setBuildID () {
+        // 设置项目ID;
+        const url=this.$csUrl+'/clientServer/setBuildID';
+        var params = new URLSearchParams();
+        params.append('licence',this.licence);
+        params.append('build_id', this.selectProject);
+        var data = {
+          'licence': this.licence,
+          'build_id': this.selectProject
+        };
+
+        this.$http({
+          method: 'POST',
+          url: url,
+          data:JSON.stringify(data)
+        }).then(response => {
+          /*
+          * 获取项目列表之后的逻辑;
+          * */
+          if(response.data.result == 1){
+            //  --
+            this.toastSuccess('设置项目成功!');
+          }else{
+            //
+            this.toast('设置项目失败!'); //1.1
+          };
+
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      getNetState () {
+        // 获取内外网状态；
+        const url=this.$csUrl+'/clientServer/getNetState';
+
+        this.$http({
+          method: 'get',
+          url: url
+        }).then(response => {
+          /*
+          * 获取项目列表之后的逻辑;
+          * */
+          if(response.data.result == 1){
+            //  --
+            if(response.data.net_state == 1){
+              this.switchIn = true;
+            }else{
+              this.switchIn = false;
+            };
+            this.toastSuccess('获取内网状态成功!');
+
+          }else{
+            //
+            this.toast('获取内网状态失败!'); //1.1
+          };
+
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      setNetState () {
+        // 设置内外网状态
+        // 获取内外网状态；
+        const url=this.$csUrl+'/clientServer/setNetState';
+        var data = {
+          'net_state': this.net_state,
+          'build_id': this.selectProject
+        };
+
+        this.$http({
+          method: 'POST',
+          url: url,
+          data:JSON.stringify(data)
+        }).then(response => {
+          /*
+          * 获取项目列表之后的逻辑;
+          * */
+          if(response.data.result == 1){
+            //  --
+            eventbus.$emit('OnToInNet', this.switchIn,this.selectProject);
+            this.toastSuccess('设置内网成功!');
+          }else{
+            //
+            this.toast('设置内网失败!'); //1.1
+          };
+
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      }
+
+
+    }
+
+  }
+</script>
+
+<style scoped lang="scss">
+  .par-state{
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    .general{
+      padding-top: 40px;
+      flex: 10 0 auto;
+      border-radius: 3px;
+      background: #fff;
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+      /*border:1px solid #ff0000;*/
+    }
+    .general-input{
+      width: 136px;
+      line-height: 48px;
+      margin: 0px 10px;
+      /*border: 1px solid #ff3b52;*/
+    }
+    .manage-project{
+      width: 300px;
+      line-height: 48px;
+      margin: 0px 10px;
+      display: flex;
+      /*justify-items: center;*/
+      /*border: 1px solid #ff3b52;*/
+    }
+    .general-inputRange{
+      width: 350px;
+      line-height: 48px;
+      margin: 0px 10px;
+      /*border: 1px solid #ff3b52;*/
+    }
+    .general-i{
+      height: 50px;
+      line-height: 50px;
+    }
+    .general-nav{
+      width: 135px;
+      height: 50px;
+      line-height: 50px;
+      text-align: left;
+      margin-left: 30px;
+    }
+    .state-from{
+      display: flex;
+      flex-direction:row ;
+      margin-bottom: 20px;
+      /*border:1px solid #00ff00;*/
+    }
+
+  }
+
+</style>

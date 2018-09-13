@@ -1,0 +1,380 @@
+<template>
+  <div>
+    <p class="back-nav">
+      车牌号  <el-input
+      placeholder="请输入内容"
+      v-model="input9"
+      size="small"
+      clearable  style="width: 200px;margin-right: 20px;" class="input-round">
+    </el-input>
+      <el-button type="primary" size="small" round icon="el-icon-search"></el-button>
+    </p>
+    <div class="main-padding par-state">
+     <div class="bark-row">
+       <div class="bark-one">
+         <p class="back-title">
+           <span><i></i>白名单</span>
+           <el-button round icon="el-icon-plus" size="small" @click="newBack('back')">新增记录</el-button>
+           <el-button round icon="el-icon-download" size="small" type="danger">批量导出</el-button>
+         </p>
+         <el-table
+           :data="tableData"
+           height="100%"
+           style="width: 100%;">
+           <el-table-column
+             type="selection"
+             width="30">
+           </el-table-column>
+           <!--下拉-->
+           <el-table-column
+             label="编号"
+             prop="id"
+             align="center"
+             width="">
+           </el-table-column>
+           <el-table-column
+             prop="name"
+             empty-text="暂无数据"
+             label="车牌号"
+             align="center"
+             width="">
+           </el-table-column>
+
+           <el-table-column
+             align="center"
+             label="操作"
+             width="">
+             <template slot-scope="scope">
+               <el-button size="mini" round  @click="handleClick(scope.row,$event)" ><i class="back-i-bulr"></i>编辑</el-button>
+               <el-button  size="mini" round @click="backDelete(scope.row,$event)" type="info"><i class="back-i-red"></i>删除</el-button>
+             </template>
+           </el-table-column>
+         </el-table>
+         <div class="block">
+           <el-pagination
+             @size-change="handleSizeChange"
+             @current-change="handleCurrentChange"
+             :current-page.sync="currentPage"
+             :page-size="5"
+             layout="total, prev, pager, next,jumper"
+             :total="20">
+           </el-pagination>
+         </div>
+       </div>
+       <div class="bark-one">
+         <p class="back-title">
+           <span><i></i>黑名单</span>
+           <el-button round icon="el-icon-plus" size="small" @click="newBack('white')">新增记录</el-button>
+           <el-button round icon="el-icon-download" size="small" type="danger">批量导出</el-button>
+         </p>
+         <el-table
+           :data="tableData"
+           height="100%"
+           style="width: 100%;">
+           <el-table-column
+             type="selection"
+             width="30">
+           </el-table-column>
+           <!--下拉-->
+           <el-table-column
+             label="编号"
+             prop="id"
+             align="center"
+             width="">
+           </el-table-column>
+           <el-table-column
+             prop="name"
+             empty-text="暂无数据"
+             label="车牌号"
+             align="center"
+             width="">
+           </el-table-column>
+
+           <el-table-column
+             align="center"
+             label="操作"
+             width="">
+             <template slot-scope="scope">
+               <el-button size="mini" round  @click="handleClick(scope.row,$event)" ><i class="back-i-bulr"></i>编辑</el-button>
+               <el-button  size="mini" round @click="backDelete(scope.row,$event)" type="info"><i class="back-i-red"></i>删除</el-button>
+             </template>
+           </el-table-column>
+         </el-table>
+         <div class="block">
+           <el-pagination
+             @size-change="handleSizeChange"
+             @current-change="handleCurrentChange"
+             :current-page.sync="currentPage"
+             :page-size="5"
+             layout="total, prev, pager, next,jumper"
+             :total="20">
+           </el-pagination>
+         </div>
+       </div>
+     </div>
+    </div>
+    <!--新增-->
+    <el-dialog
+      :title="nawTitle"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="newBackWhite"
+      width="30%"
+      top="35vh"
+      :before-close="handleClose">
+      <el-input v-model="newBackInput" placeholder="请输入车牌"></el-input>
+      <p v-if="nawTitle=='添加白名单'">白名单车辆查询机隐私保护不可查询到</p>
+      <p v-else>黑名单车辆进入车位会报警提示</p>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="newBackWhite = false" type="text">取 消</el-button>
+        <el-button type="primary" size="small" round @click="newBackWhiteClick(newBackInput)">确 定</el-button>
+      </span>
+    </el-dialog>
+    <!--弹窗占位置-->
+    <el-dialog
+      title="提示"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="centerDialogVisible"
+      width="30%"
+    >
+      <el-form ref="form" :model="form" label-width="80px">
+
+        <el-col :span="24">
+          <el-form-item label="编号">
+            <el-input v-model="form.id"></el-input>
+          </el-form-item>
+        </el-col>
+
+        <el-col :span="24"><el-form-item label="车牌号">
+          <el-input v-model="form.name"></el-input>
+        </el-form-item>
+        </el-col>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+      <el-button right @click="centerDialogVisible = false" type="text">取 消</el-button>
+      <el-button type="primary" :loading="loading" @click="onSubmit(form)">确 定</el-button>
+      </span>
+    </el-dialog>
+
+  </div>
+
+</template>
+
+<script>
+  export default {
+    name: "hoursers",
+    data(){
+      return{
+        msg:"我只是你们默认页面的A页面",
+        tableShow:true,
+        tableData: [{
+          id:'01',
+          name: '京A.BC1232',
+
+        },{
+          id:'02',
+          name: '京A.BC1232',
+
+        },{
+          id:'03',
+          name: '京B.BC1232',
+
+        },{
+          id:'04',
+          name: '京C.BC1232',
+
+        },{
+          id:'05',
+          name: '京D.BC1232',
+
+        },{
+          id:'05',
+          name: '京D.BC1232',
+
+        },{
+          id:'05',
+          name: '京D.BC1232',
+
+        },{
+          id:'05',
+          name: '京D.BC1232',
+
+        },{
+          id:'05',
+          name: '京D.BC1232',
+
+        },{
+          id:'05',
+          name: '京D.BC1232',
+
+        }],
+        filts:[
+
+        ],
+        input9:'',
+        centerDialogVisible:false,
+        loading:false,
+        newBackWhite:false,
+        nawTitle:'',
+        newBackInput:'',
+        currentPage: 1,
+        form:{
+        }
+      }
+    },
+    methods: {
+      //查看
+      handleClick(row,event) {
+        event.cancelBubble = true;
+        this.centerDialogVisible=true;
+        this.form = { //直接赋值可能是因为elenmet 方法把row进行数据绑定了
+          date: row.date,
+          name: row.name,
+          province:row.province,
+          city: row.city,
+          address:row.address,
+          zip:row.zip,
+        };
+      },
+      //编辑确定
+      onSubmit(form) {//导致row会全局引用
+        this.loading=true;
+        setTimeout(()=>{
+          this.loading=false;
+          this.centerDialogVisible=false;
+          this.$notify({
+            title: '成功',
+            message: '已经完成修改',
+            duration:1000,
+            type: 'success'
+          });
+        },500)
+        console.log(form);
+      },
+
+      //编辑
+      editorClick(row,event) {
+        event.cancelBubble = true;
+      },
+      //新增
+      newBack(item){
+        if(item=='back'){//白
+          this.nawTitle='添加白名单'
+          this.newBackWhite =true
+        }else if(item=='white'){//黑
+          this.nawTitle='添加黑名单'
+          this.newBackWhite =true
+        }
+      },
+      newBackWhiteClick(input){
+        console.log(input)
+        this.newBackWhite =false
+      },
+      handleClose(done) {
+        this.nawTitle='',
+          this.newBackWhite =false
+      },
+      //分页
+      handleSizeChange(val) {
+        console.log(`每页 ${val} 条`);
+      },
+      handleCurrentChange(val) {
+        console.log(`当前页: ${val}`);
+      },
+      backDelete(item){
+        console.log(item)
+        if(item){
+          this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
+            this.$message({
+              type: 'success',
+              message: '删除成功!'
+            });
+          }).catch(() => {
+            this.$message({
+              type: 'info',
+              message: '已取消删除'
+            });
+          });
+        }
+      }
+
+    },
+    mounted(){
+
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  @import "../../style/variables.scss";
+  //弹性弹性
+  .bark-row{
+    display: flex;
+    height: calc(100% - 120px);
+    /*width: calc(100% - 226px);*/
+    width: 100%;
+    flex-direction: row;
+    .bark-one{
+      display: flex;
+      flex: 5 0 auto;
+      margin: 0px 1%;
+      flex-direction: column;
+      width: 48%;
+      .back-title{
+        float: left;
+        text-align: right;
+        line-height: 30px;
+        width: 100%;
+        flex: 1 0 auto;
+        span{
+          float: left;
+          i{
+            display: inline-block;
+            height: 18px;
+            float: left;
+            background: #7362e4;
+            width: 3px;
+            margin-right: 6px;
+            position: relative;
+            top: 6px;
+          }
+        }
+      }
+      .el-table{
+        flex: 6 0 auto;
+      }
+      .block{
+        flex: 1 0 auto;
+        text-align: center;
+        margin: 20px 0px;
+      }
+    }
+  }
+  .back-nav {
+    background: #fff;
+    padding: 12px 20px;
+    margin: 0px;
+    margin-bottom: 20px;
+  }
+  .back-i-bulr{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    border-radius: 25px;
+    margin-right:6px;
+    background: $green;
+  }
+  .back-i-red{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    margin-right:6px;
+    border-radius: 25px;
+    background: $red;
+  }
+</style>

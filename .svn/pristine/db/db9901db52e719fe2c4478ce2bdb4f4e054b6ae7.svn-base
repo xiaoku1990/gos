@@ -1,0 +1,83 @@
+<template>
+    <div class="dialog-msg">
+      <p class="title" :style="{color:msgType==0?'#f95a3a':'#666'}"><i class="el-icon-warning"></i>{{title}}<el-button type="text" icon="el-icon-close" @click="msgChose()"></el-button></p>
+      <div class="title-div" v-if="msgData.type==0">
+
+          <p>车牌号:{{msgData.name}}</p>
+          <p>车位号:{{msgData.id}}</p>
+
+      </div>
+      <p class="dialog-footer">   <el-button @click="msgChose" type="text">取 消</el-button>
+        <el-button type="primary" size="small" round @click="msgead(msgData)">确 定</el-button>
+      </p>
+    </div>
+</template>
+
+<script>
+    export default {
+        name: "dialog-msg",
+        props:['title','msgType','msgData'] ,// msgType 0是警告 1是正常  msgData.type 表示是谁传递的消息
+        data(){
+          return{
+
+          }
+        },
+         methods:{
+          msgChose(){
+            let data={
+               type:false
+            }
+            this.$emit('getAll',data);
+          },
+           msgead(item){
+            // console.log(item);
+             this.msgChose();
+           }
+        },
+        mounted(){
+
+        }
+    }
+</script>
+
+<style scoped lang="scss">
+.dialog-msg{
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  width: 356px;
+  background: #fff;
+  box-shadow: 0px 0px 8px #ccc;
+  border-radius:3px ;
+  z-index: 2011;
+  /*border:1px solid #ff3b52;*/
+  .title{
+    float: left;
+    width: 100%;
+    margin: 0px;
+    height: 40px;
+    line-height: 40px;
+    padding: 0px 20px;
+    border-bottom:1px solid #ddd ;
+    button{
+      float: right;
+    }
+    i{
+      margin-right: 8px;
+    }
+  }
+  .title-div{
+    float: left;
+    width: 100%;
+    padding: 20px 32px;
+    /*border: 1px solid #ff3b52;*/
+
+  }
+  .dialog-footer{
+    float: left;
+    text-align: right;
+    width: 100%;
+    padding: 0px 20px;
+  }
+}
+</style>

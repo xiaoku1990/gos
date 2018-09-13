@@ -1,0 +1,246 @@
+
+<template>
+  <div class="sidebar">
+
+      <el-menu
+        :default-active="siderNumber"
+        class="el-menu-vertical-demo"
+        background-color="#283345"
+        text-color="#fff"
+        @select="handleSelect"
+        active-text-color="#ffd04b">
+        <!---->
+        <el-menu-item v-for="(item,i) in sideBarData" :index="item.id" v-if="menuBigRight & item.rightValue">
+          <i :class="item.icon"></i>
+          <span slot="title"  visible="false">{{item.name}}</span>
+        </el-menu-item>
+        <!---->
+        <el-submenu :index="sideBarVideo.id" v-if="menuBigRight & sideBarVideo.rightValue">
+          <template slot="title">
+            <i :class="sideBar.icon"></i>
+            <span>{{sideBarVideo.name}}</span>
+          </template>
+          <el-menu-item-group>
+            <el-menu-item v-for="(item,i) in sideBarVideo.mentNode" :index="item.id">
+              <i :class="item.icon"></i>
+              <span slot="title">{{item.name}}</span>
+            </el-menu-item>
+          </el-menu-item-group>
+        </el-submenu>
+        <!---->
+        <el-submenu :index="sideBar.id" v-if="menuBigRight & sideBar.rightValue">
+          <template slot="title">
+            <i :class="sideBar.icon"></i>
+            <span>{{sideBar.name}}</span>
+          </template>
+          <el-menu-item-group>
+            <el-menu-item v-for="(item,i) in sideBar.mentNode" :index="item.id" v-if="menuSmallRight & item.rightValue">
+              <i :class="item.icon"></i>
+              <span slot="title">{{item.name}}</span>
+            </el-menu-item>
+          </el-menu-item-group>
+        </el-submenu>
+
+
+      </el-menu>
+
+  </div>
+</template>
+
+<script>
+  //import {addNote,deleteNote,toggleFavorite} from "../../store/actions";//利用actions 调用mutations 中的方法 坑死人
+  import { mapGetters, mapActions } from 'vuex'
+  export default {
+        data() {
+          return {
+            menuBigRight: 0,
+            menuSmallRight: 0,
+            isCollapse: true,
+            sideBarData:[{
+              id:'1',
+              icon:'el-icon-location',
+              name:'车位状态图',
+              url:'/info',
+              rightValue: 1,
+            },{
+              id:'2',
+              icon:'el-icon-tickets',
+              name:'车位利用率',
+              url:'/vehicleUsing',
+              rightValue: 2,
+            },{
+              id:'3',
+              icon:'el-icon-tickets',
+              name:'黑白名单',
+              url:'/backWhite',
+              rightValue: 4,
+            },{
+              id:'4',
+              icon:'el-icon-tickets',
+              name:'停车日志',
+              url:'/theCarLog',
+              rightValue: 8,
+            },{
+              id:'5',
+              icon:'el-icon-tickets',
+              name:'照明系统',
+              url:'/lighting',
+              rightValue: 32,
+            },{
+              id:'6',
+              icon:'el-icon-tickets',
+              name:'环境系统',
+              url:'/environment',
+              rightValue: 64,
+            }],
+            sideBarVideo:{
+              id:'7',
+              icon:'el-icon-menu',
+              name:'视频监控',
+              // url:'/view/home/backWhite',
+              rightValue: 16,
+              mentNode:[
+                {
+                  id:'7',
+                  icon:'el-icon-remove-outline',
+                  name:'视频直播',
+                  //url:'/system/general',
+                  url:'/live'
+                },
+                {
+                  id:'8',
+                  icon:'el-icon-remove-outline',
+                  name:'视频点播',
+                  url:'/videoDemand',
+                }
+              ]
+            },
+            sideBar:{
+              id:'9',
+              icon:'el-icon-menu',
+              name:'系统管理',
+              // url:'/view/home/backWhite',
+              rightValue: 128,
+              mentNode:[
+                {
+                  id:'9',
+                  icon:'el-icon-remove-outline',
+                  name:'通用设置',
+                  url:'/system/general',
+                  rightValue: 1,
+                },
+                {
+                  id:'10',
+                  icon:'el-icon-remove-outline',
+                  name:'部门信息管理',
+                  url:'/system/information',
+                  rightValue: 2,
+                },
+                {
+                  id:'11',
+                  icon:'el-icon-remove-outline',
+                  name:'角色管理与授权',
+                  url:'/system/authorization',
+                  rightValue: 4,
+                },
+                {
+                  id:'12',
+                  icon:'el-icon-remove-outline',
+                  name:'人员管理与授权',
+                  url:'/system/personnel',
+                  rightValue: 8,
+                },
+                {
+                  id:'13',
+                  icon:'el-icon-remove-outline',
+                  name:'敏感操作日志',
+                  url:'/system/sensitiveLog',
+                  rightValue: 16,
+                },
+                // {
+                //   id:'14',
+                //   icon:'el-icon-remove-outline',
+                //   name:'车位管理',
+                //   url:'/system/parkingSpace',
+                //   rightValue: 32,
+                // }
+              ]
+            },
+            keyIndex: this.$store.state.sidebarNumber
+          };
+        },
+        methods: {
+          handleSelect(key, keyPath) {
+            //console.log(key);
+            if(key<7){
+              this.sideBarData.forEach((item)=>{
+                if(item.id == key){
+                  this.$router.push(item.url)
+                }
+              })
+            }else {
+              this.sideBarVideo.mentNode.forEach((item)=>{
+                if(item.id == key){
+                  this.$router.push(item.url)
+                }
+              })
+              //
+              this.sideBar.mentNode.forEach((item)=>{
+                if(item.id == key){
+                  this.$router.push(item.url)
+                }
+              })
+            //
+            }
+          }
+        },
+        computed:{
+          siderNumber(){
+
+            return this.$store.state.sidebarNumber
+          }
+        },
+        mounted(){
+          const _this = this;
+          if(localStorage.getItem('userInfo')) {
+            let userInfo = JSON.parse(localStorage.getItem('userInfo'));
+            console.log(`[sidebar]重新读取登录信息：${localStorage.getItem('userInfo')}`);
+            this.menuBigRight = userInfo.user_roleBigRight;
+            this.menuSmallRight = userInfo.user_roleSmallRight;
+          } else {
+            console.log('[sidebar]local storage 里面找不到登录信息userInfo');
+          }
+          eventbus.$on('onUserLogin', function(userInfo) {
+            console.log('[sidebar]on user login');
+            if(userInfo) {
+              _this.menuBigRight = userInfo.user_roleBigRight;
+              _this.menuSmallRight = userInfo.user_roleSmallRight;
+            } else {
+              _this.menuBigRight = 0;
+              _this.menuSmallRight = 0;
+            }
+          });
+        }
+    }
+</script>
+<style scoped lang="scss">
+  @import "../../style/variables.scss";
+.sidebar{
+  background: $deepBlue;
+}
+  .el-menu-vertical-demo:not(.el-menu--collapse) {
+    width: 226px;
+    min-height: 400px;
+  }
+  .el-menu{
+    border-right:0px ;
+  }
+  /**/
+  .sidebar{
+    position: absolute;
+    width: 226px;
+    overflow-y: auto;
+    height: 100%;
+    padding-bottom: 100px;
+  }
+</style>

@@ -1,0 +1,360 @@
+<template>
+  <div class="landing">
+    <div class="login-con1"><div style="margin-left: 40px"><img src="~@/assets/images/logoIcon.png"></div></div>
+    <div class="login-con2">
+    <div class="login-con">
+      <div class="logo-title">
+        <h2>登录</h2>
+      </div>
+      <el-form :model="loginForm" status-icon :rules="loginRules" label-width="80px" ref="loginForm"  class="demo-ruleForm logon-form">
+        <el-form-item label="用户名" prop="nick_name" class="login-div">
+          <el-input type="text" class="login-input" v-model="loginForm.nick_name" auto-complete="off"  placeholder="请输入用户名"></el-input>
+        </el-form-item>
+        <el-form-item label="密码" prop="user_pwd"  class="login-div">
+          <el-input type="password" class="login-input" v-model="loginForm.user_pwd" auto-complete="off"  placeholder="请输入密码"></el-input>
+        </el-form-item>
+        <el-form-item  class="login-div-button">
+          <el-button type="primary" class="log-btn" :loading="loading" @click="loginSubmit">登录</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+    </div>
+
+    <div class="login-con1"></div>
+    <!---->
+
+  </div>
+  <!---->
+
+  <!---->
+</template>
+
+<!---->
+<script>
+    import store from '@/store/index'
+    export default {
+      name: "login",
+      data() {
+
+        let validateUserName = (rule, value, callback) => {
+          if (value === '') {
+            callback(new Error('请输入用户名'));
+          } else {
+            callback();
+          }
+        };
+        let validatePassword = (rule, value, callback) => {
+          if (value === '') {
+            callback(new Error('请输入密码'));
+          }else {
+            callback();
+          }
+        };
+        return {
+          loginForm: {
+            build_id: this.$BuildId,
+            nick_name: '',
+            user_pwd: ''
+          },
+          loading: false,
+          loginRules: {
+            nick_name: [
+              { validator: validateUserName, trigger: 'blur' }
+            ],
+            user_pwd: [
+              { validator: validatePassword, trigger: 'blur' }
+            ]
+          }
+        };
+      },
+      created () {
+
+      },
+      mounted(){//生命周期函数(vue实例创建完成))
+
+      },
+      methods: {
+        loginSubmit() {
+          /*
+          *0.9 根据用户名和密码挑战到指定路由;
+          *1.0 获取是否可以切换项目/clientServer/getBuildSwitchLicence;
+          * (把获取的licence保存起来；进入项目配置页/clientConfig)
+          *1.1 显示切换下项目页;
+          *1.2 获取BUild /clientServer/getBuildID;
+          *1.3 设置build /clientServer/setBuildID;
+          *
+          *1.4 获取内外网状态;/clientServer/getNetState;
+          *1.5 设置内外网模式;/clientServer/setNetState;
+          * */
+          this.$refs['loginForm'].validate((valid) => {
+            if (valid) {
+              this.loading = true;
+
+              let url = this.$Api + '/GOSSystem/userLogin'
+              this.loginPost(url, this.loginForm);
+
+            } else {
+              return false;
+            }
+          });
+        },
+        loginPost(url, date) {
+
+          var params = new URLSearchParams();
+          //--------
+          if (date.nick_name.toLowerCase() === 'admin' && date.user_pwd.toLowerCase() === 'admin') {
+            //指定用户权限;
+            /*
+            * 1.0 手动拼接一个用户的登录信息;
+            * 1.1 把用户登录转成字符串，并存储到localStorage;
+            * 1.2 抛出一个事件，传递用户登录信息;
+            * */
+            var userInfo = {
+              nick_name: "admin",
+              user_authorize: "1",
+              user_departmentID: 0,
+              user_departmentName: 0,
+              user_id: "001",
+              user_name: "admin",
+              user_roleBigRight: "2048",
+              user_roleID: "0",
+              user_roleName: "admin",
+              user_roleSmallRight: "1",
+              user_state: 1,
+            }
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            eventbus.$emit('onUserLogin', userInfo);
+            this.$router.push("/system/general");
+          } else {
+            // 非指定用户;
+            /* 1.0 进行普通用户登录;
+            *  1.1 登录成功后,请求获取项目信息
+            *  1.2 更改 main.js里面的项目配置信息;
+            * */
+
+            //--
+            params.append('build_id', date.build_id);
+            params.append('nick_name', date.nick_name);
+            params.append('user_pwd', date.user_pwd);
+            this.$http.post(
+              url,
+              params,
+              {
+                timeout: 2000,
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                }
+
+              }).then((response) => {
+              console.log(response);
+              this.loading = false;
+              //获取屏幕ID之后的逻辑处理
+              //response.data;
+              if (response.data.result === 1) {
+
+                this.$notify({
+                  title: '登录成功',
+                  message: response.data.msg,
+                  duration: 888,
+                  type: 'success'
+                });
+                //
+                // 1.1
+                let _this = this;
+                _this.getBuildID(function () {
+                  localStorage.setItem('userInfo', JSON.stringify(response.data.user_info));
+                  eventbus.$emit('onUserLogin', response.data.user_info);
+                  // 跳转路由!
+                  _this.$router.push("/info");
+                });
+                //
+
+
+              } else {
+                this.$notify({
+                  title: '登录失败',
+                  message: response.data.msg,
+                  duration: 2000,
+                  type: 'error'
+                });
+              }
+
+
+            }).catch((error) => {
+              //console.log(error);
+              this.$notify({
+                title: 'ERROR',
+                message: `${error}`,
+                duration: 2000,
+                type: 'error'
+              });
+            });
+          }
+          ;
+        },
+        getBuildID(callback) {
+          // 该接口只用于登录
+          const url = this.$csUrl + '/clientServer/getBuildID';
+          this.$http({
+            method: 'get',
+            url: url
+          }).then(response => {
+            console.log(response);
+            /*
+            * 获取项目信息之后的逻辑;
+            * */
+            if (response.data.result == 1) {
+              //
+              //
+
+              /*
+              * 拿到当前项目并更改main.js里面的配置信息;
+              *
+              * */
+              this.getNetState(response.data.build_id);
+              eventbus.$emit('changeProject', response.data.build_id);
+              callback();
+            } else {
+              //
+              this.toast('获取当前项目信息失败!'); //1.1
+            }
+            ;
+
+          }).catch((error) => {
+            this.$notify({
+              title: 'ERROR',
+              message: `${error}`,
+              duration: 2000,
+              type: 'error'
+            });
+          });
+        },
+        toast(date) {
+          this.$message({
+            message: date,
+            type: 'warning',
+            center: true
+          });
+        },
+        toastSuccess(date){
+          this.$message({
+            message: date,
+            type: 'success',
+            center:true
+          });
+        },
+        getNetState (date) {
+          // 获取内外网状态；
+          const url=this.$csUrl+'/clientServer/getNetState';
+
+          this.$http({
+            method: 'get',
+            url: url
+          }).then(response => {
+            /*
+            * 获取项目列表之后的逻辑;
+            * */
+            if(response.data.result == 1){
+              //  --
+              if(response.data.net_state == 1){
+                eventbus.$emit('OnToInNet', true, date);
+              }else{
+                eventbus.$emit('OnToInNet', false, date);
+              };
+              this.toastSuccess('获取内网状态成功!');
+
+            }else{
+              //
+              this.toast('获取内网状态失败!'); //1.1
+            };
+
+          }).catch((error) => {
+            this.$notify({
+              title: 'ERROR',
+              message: `${error}`,
+              duration: 2000,
+              type: 'error'
+            });
+          });
+        }
+      }
+    }
+</script>
+
+<style scoped lang="scss">
+.landing{
+  display: flex;
+  flex-flow: column nowrap;
+  place-content: flex-end flex-start;
+  align-items: flex-start;
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  top: 0px;
+  left: 0px;
+  align-items: baseline;
+  align-content: stretch;
+  /*background:url("../assets/images/logoin.jpg") #000;*/
+  h2{
+    margin: 30px 0px 15px 0px;
+    font-weight: normal;
+  }
+  .login-con1{
+    width: 100%;
+    align-self: auto;
+    flex: 0.8 1 auto;
+    order: 10;
+    flex-basis: content;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    flex-flow: row;
+    background: #fff;
+    /*border:1px solid #ff0000;*/
+  }
+  .login-con2{
+    width: 100%;
+    align-self: auto;
+    flex: 9 1 auto;
+    order: 10;
+    //background: linear-gradient(45deg, rgb(71, 86, 144) 0px, rgb(9, 14, 33) 100%) center center / cover;
+    background:  url(~@/assets/images/bgLogImg.png) no-repeat;
+    object-fit: cover;
+  }
+  .login-con{
+    position: absolute;
+    top: 50%;
+    /* margin-top: -180px; */
+    right: 0%;
+    width: 396px;
+    border: 4px solid #457f9e5e;
+    background: #fff;
+    border-radius: 3px;
+    transform: translate(-37%, -50%);
+    border:1px solid #00FF00;
+  }
+  .el-select{
+    width: 100%;
+  }
+  .logon-form{
+    padding: 24px 0px 16px 0px;
+  }
+  .logo-title{
+    width: 100%;
+    text-align: center;
+    img{
+      width: 76px;
+    }
+  }
+  .logo-i{
+    position: absolute;
+    color: #fff;
+    z-index: 1;
+    font-size: 1rem;
+    width: 25px;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+  }
+}
+</style>

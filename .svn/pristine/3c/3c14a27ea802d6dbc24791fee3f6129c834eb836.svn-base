@@ -1,0 +1,170 @@
+<template>
+  <div class="floor-state-top">
+    <div class="state-round-s">
+      <button class="button-left" @click="lastFloor()" v-show="floorHasLast">
+        <i class="el-icon-arrow-left"></i>
+      </button>
+      <div class="state-round">{{floorData[floorIndex].floor_name}}
+        <div class="state-box"></div>
+      </div>
+      <button class="button-right" @click="nextFloor()" v-show="floorHasNext">
+        <i class="el-icon-arrow-right"></i>
+      </button>
+    </div>
+    <div class="state-bottom" >
+      <ul>
+        <li v-for="item in stateData" :style="{border:'1px solid #'+item.back+''}">
+          <span :style="{background:'#'+item.back+''}"></span><i :style="{borderRight:'1px solid #'+item.back+''}"></i>{{item.name}}: {{item.numberSize}}
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+
+<script>
+  export default {
+    name: 'floor-state',
+    props: {
+      floorData: Array,
+      stateData: Array
+    },
+    watch: {
+      floorData(data) {
+        this.floorIndex = 0;
+        this.floorHasLast = false;
+        this.floorHasNext = (data.length > 1);
+      }
+    },
+    data() {
+      return {
+        floorIndex: 0,
+        floorHasLast: false,
+        floorHasNext: false
+      }
+    },
+    methods:{
+      lastFloor() {
+        this.floorIndex--;
+        this.floorHasLast = (this.floorIndex > 0);
+        this.floorHasNext = (this.floorIndex < this.floorData.length - 1);
+        console.log(`floor State 左: ${this.floorIndex}/${this.floorData.length - 1}`);
+        this.$emit('onLastFloor', this.floorIndex);
+      },
+      nextFloor() {
+        this.floorIndex++;
+        this.floorHasLast = (this.floorIndex > 0);
+        this.floorHasNext = (this.floorIndex < this.floorData.length - 1);
+        console.log(`floor State 右: ${this.floorIndex}/${this.floorData.length - 1}`);
+        this.$emit('onNextFloor', this.floorIndex);
+      }
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  .floor-state-top{
+    display: flex;
+    flex: 5 0 auto;
+    flex-direction: row;
+    flex-direction: column;
+  }
+  .state-round-s{
+    flex: 5 0 auto;
+    align-items: center;
+    align-self: center;
+    display: flex;
+    flex-direction: row;
+    position: relative;
+  }
+  .state-round{
+    text-align: center;
+    line-height: 106px;
+    color: #fff;
+    font-size: 36px;
+    background: linear-gradient(180deg, #fdada2 0px, #ff999d 100%) center center / cover;
+    border-radius: 50%;
+    width: 106px;
+    height: 106px;
+    margin: 1% 0px 0px 1%;
+  }
+  .state-box{
+    height: 9px;
+    border-radius: 10px;
+    width: 77px;
+    margin: 0 auto;
+    -webkit-box-shadow: 0px 10px 10px #ffc4c8;
+    box-shadow: 0px 17px 19px #ffc4c8;
+    position: relative;
+    top: -15px;
+  }
+  .state-bottom{
+    flex: 5 0 auto;
+    background: #fff;
+    position: relative;
+    height:calc( 50% - 5px);
+    display: flex;
+    overflow-y: auto;
+    .block{
+      margin: 10px 0px;
+    }
+    ul{
+      transition:whith  0.4s;
+      width: 100%;
+      li{
+        margin: 0px 15% 10px 15%;
+        border-radius: 3px;
+        position: relative;
+        border-left: 0px !important;
+        width: 70%;
+        float: left;
+        padding: 5px 0px;
+        span{
+          border-radius: 50%;
+          display: inline-block;
+          height: 18px;
+          width: 18px;
+          border-radius: 50%;
+          display: inline-block;
+          position: absolute;
+          top: -1px;
+          left: -7px;
+          z-index: 2;
+        }
+        i{
+          display: inline-block;
+          width: 13px;
+          height: 22px;
+          position: absolute;
+          z-index: 1;
+          left: -2px;
+          top: 10px;
+          background: #fff;
+        }
+      }
+    }
+  }
+  .button-right{
+    position: absolute;
+    top: 40%;
+    right: -67px;
+    font-size: 28px;
+    border: none;
+    transform: translate(32%, -12%);
+    background: transparent;
+    &:hover{
+      color: #0000ff;
+    }
+  }
+  .button-left{
+    left: -102px;
+    position: absolute;
+    top: 48%;
+    font-size: 28px;
+    border: none;
+    transform: translate(51%, -51%);
+    background: transparent;
+    &:hover{
+      color: #0000ff;
+    }
+  }
+</style>

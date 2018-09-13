@@ -1,0 +1,138 @@
+<template>
+  <div id="app">
+      <headers ></headers>
+      <div class="appView">
+        <sidebar></sidebar>
+        <router-view>
+
+
+        </router-view>
+
+      </div>
+    <!---->
+    <!--消息弹窗-->
+    <dialog-msg :title="diaglogMsg" :msgType="0" :msgData="diagloMsg" @getAll="parkinMsg"  v-if="dialogVisible">
+    </dialog-msg>
+    <!---->
+    </div>
+    <!---->
+
+  <!---->
+</template>
+
+<script>
+  import sidebar from '@/components/modules/sidebar'  /*header*/
+  import headers from '@/components/header/headers'  /*header*/
+  import dialogMsg from '@/components/modules/dialogMsg'
+export default {
+  name: 'App',
+  data(){
+    return{
+      dialogVisible:false,
+      diaglogMsg:'警告',
+      pushTaggle:false,//推送功能开关;
+      diagloMsg:{},
+      userInfo:''//登录信息
+    }
+  },
+  methods: {
+    parkinMsg(data){
+      this.dialogVisible = data.type;
+      //console.log(data);
+
+    }
+  },
+  mounted() {
+
+
+    let that=this;
+
+    eventbus.$on('onUserLogout',function () {
+      that.dialogVisible=false;
+    });//
+    //初始化GoEasy对象
+    if(typeof GoEasy !== 'undefined'){
+      that.goEasy = new GoEasy({
+        appkey: 'BC-72fd8a56ab784bb9b8c3325ca09de154',
+        userId:"beefind",
+        username:"beefind",
+        onConnected:function(){
+          //alert("Connect to GoEasy success.");
+        } ,
+        onDisconnected:function(){
+          //alert("Disconnect to GoEasy server.");
+        } ,
+        onConnectFailed:function(error){
+          //alert("Connect to GoEasy failed, error code: "+ error.code+" Error message: "+ error.content);
+        }
+      });
+    };//
+    //订阅channel
+
+    subscribe();
+    function subscribe(){
+      that.goEasy.subscribe({
+        channel: 'beefind',
+        onMessage: function(message){////自动接收推送信
+          //--------
+          that.pushTaggle = localStorage.getItem('messagePush')==='true';
+          that.userInfo = localStorage.getItem('userInfo');
+          console.log(that.userInfo);
+          //console.log(message.content);
+
+          var content=JSON.parse(message.content);
+          console.log(content);
+          let testContent=content;
+          //alert('Meessage received:'+message.content);
+
+          that.diagloMsg=testContent;
+          console.log(that.pushTaggle);
+          if(that.userInfo!=null){//是否登录
+            //推送开关
+            if(that.pushTaggle){
+              that.dialogVisible=true;
+            }else {
+              that.dialogVisible=false;
+            };
+          }else{
+            that.dialogVisible=false;
+          };//
+
+        },
+        onSuccess:function(){
+          //alert("Subscribe the Channel successfully.");
+
+        },
+
+        onFailed: function(error){
+
+          //alert("Subscribe the Channel failed, error code: "+ error.code + " error message: "+ error.content);
+
+        }
+
+      });
+
+    };//
+  },
+  components:{headers,sidebar,dialogMsg}
+}
+</script>
+
+<style lang="scss">
+  #app{
+    /*display: flex;*/
+    flex-flow: column nowrap;
+    place-content: flex-end flex-start;
+    align-items: flex-start;
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    align-items: baseline;
+    align-content: stretch;
+    .appView{
+      display: flex;
+      width: 100%;
+      min-height: 100%;
+    }
+  }
+</style>

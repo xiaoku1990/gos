@@ -1,0 +1,691 @@
+<template>
+  <div class="par-state main-padding">
+
+    <el-row :gutter="10">
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12"  @click.self="dialogMap('vOne')">
+
+        <video-player  class="vjs-custom-skin" id="videoPlayer" ref="videoPlayer" :playsinline="true" :options="playerOptions" @ready="onPlayerReadied"   @play="onPlayerPlay($event)"
+                       @pause="onPlayerPause($event)"
+                       @ended="onPlayerEnded($event)"
+                       @loadeddata="onPlayerLoadeddata($event)"
+                       @waiting="onPlayerWaiting($event)"
+                       @playing="onPlayerPlaying($event)"
+                       @timeupdate="onPlayerTimeupdate($event)"
+                       @canplay="onPlayerCanplay($event)"
+                       @canplaythrough="onPlayerCanplaythrough($event)"
+                       @statechanged="playerStateChanged($event)">
+        </video-player>
+        <img @click.self.self="imgMap('vOne')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
+
+        <video-player  class="vjs-custom-skin" id="videoPlayer" ref="videoPlayer" :options="playerOptionsT" @ready="onPlayerReadied" @timeupdate="onTimeupdate">
+        </video-player>
+        <img @click.self.self="imgMap('vTwo')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
+
+        <video-player  class="vjs-custom-skin" id="videoPlayer" ref="videoPlayer" :options="playerOptionsTh" @ready="onPlayerReadied" @timeupdate="onTimeupdate">
+        </video-player>
+        <img @click.self.self="imgMap('vThree')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
+        <video-player  class="vjs-custom-skin" id="videoPlayer" ref="videoPlayer" :options="playerOptionsF" @ready="onPlayerReadied" @timeupdate="onTimeupdate">
+        </video-player>
+        <img @click.self.self="imgMap('vFour')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+
+      </el-col>
+    </el-row>
+     <!---->
+    <!--弹出框-->
+    <div class="dialog"  v-show="dialogVisible">
+
+
+      <div class="dialogInfo" :xs="24" :sm="12" :md="12" :lg="12" :xl="12" :offset="6">
+        <ul>
+          <li>
+            <ul>
+              <li> 请修改要观看的位置</li>
+              <li> <i class="el-icon-error" @click.stop="dialogHide()"></i> </li>
+            </ul>
+          </li>
+          <li>
+            <!---->
+
+            <!---->
+            <div id="map"  ref="mybox">
+
+
+            </div>
+            <!---->
+            <img src="../../../static/img/up.png" alt="up" @click="upFloor()" class="up">
+            <div id="floor">
+              <ul id="floorUl" ref="floorUl">
+
+              </ul>
+            </div>
+            <img src="../../../static/img/down.png" alt="down" @click="downFloor()" class="down">
+            <!---->
+          </li>
+        </ul>
+      </div>
+
+    </div>
+    <!---->
+
+
+
+
+
+
+
+  </div>
+</template>
+
+<script>
+// import Switcher from '@/components/Switcher'
+import { module } from "../../../static/ol/findMapOOB"
+// import { tunnel } from "../../../static/ol/shuidao"
+import  tunnel from "../../../static/ol/shuidao"
+var judge;
+var videoOne,videoTwo,videoThree,videoFour;
+
+  videoOne={
+  overNative: true,
+  autoplay: false,
+  controls:true,
+    controlBar: {
+      timeDivider: false,
+      durationDisplay: false,
+      remainingTimeDisplay: true,
+      fullscreenToggle: true  //全屏按钮
+    },
+    //fluid:true,
+  techOrder: ['flash', 'html5'],
+  sourceOrder: true,
+  flash: {
+    hls: { withCredentials: false },
+    swf: '/static/media/video-js.swf'
+  },
+    live: true,
+  html5: { hls: { withCredentials: false } },
+  sources: [
+    {
+      type: 'rtmp/mp4',
+      src:'',
+      withCredentials: false
+    },
+    {
+      withCredentials: false,
+      type: 'application/x-mpegURL',
+      src:
+        ''
+    }
+  ],
+  poster:'/static/img/video/camera.png',
+    notSupportedMessage: '此视频暂无法播放，请稍后再试',
+  //width: document.documentElement.clientWidth,
+  height:document.documentElement.clientHeight*0.4
+};
+videoTwo={
+  overNative: true,
+  autoplay: false,
+  controls: true,
+  //fluid:true,
+  techOrder: ['html5', 'flash'],
+  sourceOrder: true,
+  flash: {
+    hls: { withCredentials: false },
+    swf: '/static/media/video-js.swf'
+  },
+  html5: { hls: { withCredentials: false } },
+  sources: [
+    {
+      type: 'rtmp/mp4',
+      src:''
+    },
+    {
+      withCredentials: false,
+      type: 'application/x-mpegURL',
+      src:
+        ''
+    }
+  ],
+  poster:'/static/img/video/camera.png',
+  notSupportedMessage: '此视频暂无法播放，请稍后再试',
+  //width: document.documentElement.clientWidth,
+  height:document.documentElement.clientHeight*0.4
+};
+videoThree={
+  overNative: true,
+  autoplay: false,
+  controls: true,
+  //fluid:true,
+  techOrder: ['flash', 'html5'],
+  sourceOrder: true,
+  flash: {
+    hls: { withCredentials: false },
+    swf: '/static/media/video-js.swf'
+  },
+  html5: { hls: { withCredentials: false } },
+  sources: [
+    {
+      type: 'rtmp/mp4',
+      src:''
+    },
+    {
+      withCredentials: false,
+      type: 'application/x-mpegURL',
+      src:
+        ''
+    }
+  ],
+  poster:'/static/img/video/camera.png',
+  notSupportedMessage: '此视频暂无法播放，请稍后再试',
+  //width: document.documentElement.clientWidth,
+  height:document.documentElement.clientHeight*0.4
+};
+videoFour={
+  overNative: true,
+  autoplay: false,
+  controls: true,
+  //fluid: true, // 当true时，Video.js player将拥有流体大小。换句话说，它将按比例缩放以适应其容器。
+  techOrder: ['flash', 'html5'],
+  sourceOrder: true,
+  flash: {
+    hls: { withCredentials: false },
+    swf: '/static/media/video-js.swf'
+  },
+  html5: { hls: { withCredentials: false } },
+  sources: [
+    {
+      type: 'rtmp/mp4',
+      src:''
+    },
+    {
+      withCredentials: false,
+      type: 'application/x-mpegURL',
+      src: ''
+    }
+  ],
+  poster:'/static/img/video/camera.png',
+  notSupportedMessage: '此视频暂无法播放，请稍后再试',
+  //width: document.documentElement.clientWidth,
+  height:document.documentElement.clientHeight*0.4
+};
+
+
+export default {
+  name: 'live',
+  data() {
+    return {
+      initialized: false,
+      currentTech: '',
+      dialogVisible:false,
+      clickVideo:'',
+      live:true,
+      liveMap:'',
+      streams: {
+        rtmp: '',
+        hls: ''
+      },
+      playerOptions: videoOne,
+      playerOptionsT: videoTwo,
+      playerOptionsTh: videoThree,
+      playerOptionsF: videoFour
+    }
+  },
+  computed: {
+
+
+    player() {
+      return this.$refs.videoPlayer.player
+    },
+    currentStream() {
+      return this.currentTech === 'Flash' ? 'RTMP' : 'HLS'
+    }
+  },
+  mounted(){
+
+
+
+    //--------------------
+    var diaThis=this;
+
+
+    //
+    var live_Map=new module.BeefindMap({
+      "target": diaThis.$refs.mybox,
+      "floorUl":diaThis.$refs.floorUl,
+      "city_id":"F0021",//城市ID
+      "build_id":this.$BuildId,//項目ID
+      'urlLocal':this.$Api,
+      "floor_id" :"",//樓層ID
+      "floorBarVisible":true,//楼层控件
+      "carLayerVisible":true,//车位层是否显示(默认显示)
+      "carPortLayerVisible":true,//车位号层是否显示(默认显示)
+      "interLayerVisible":true,//兴趣点层是否显示(默认显示)
+      "deviceLayerVisible":false,//设备层是否显示(默认不显示)
+      "deviceLayerVisible":true//设备层是否显示(默认不显示)
+    });
+    //var feature;
+    var localUrl='http://192.168.0.100:8421';
+    //
+
+
+
+    diaThis.liveMap=live_Map;
+    //var mapClick=localStorage.getItem('mapClick');
+    //console.log(mapClick);
+   // if(mapClick){
+
+      diaThis.liveMap.on('singleclick',function (event) {
+        var videoClick=localStorage.getItem('clickMap');
+        //console.log(videoClick);
+        var feature = diaThis.liveMap.forEachFeatureAtPixel(event.pixel, function (feature) {
+          return feature;
+        });
+        if (feature) {
+          //------------------
+          if(videoClick=='2'){
+            console.log(feature);
+            console.log('clickVideo'+diaThis.clickVideo);
+            console.log(feature.type=='camera');
+            if(feature.type=='camera'){
+               console.log(8888);
+              var cameraDate = module.getVideoUrl(localUrl, feature.param.fmn, feature.param.rannum);
+
+               console.log('clickVideo'+diaThis.clickVideo);
+
+               if(cameraDate.ip=='192.168.0.0'||cameraDate.ip==undefined||cameraDate.ip==null||cameraDate.ip==''){
+
+
+                 diaThis.streams.rtmp='';
+
+
+
+                 if(diaThis.clickVideo=='vOne'){
+                   diaThis.enterStream(diaThis.playerOptions);
+                 }else if(diaThis.clickVideo=='vTwo'){
+                   diaThis.enterStream(diaThis.playerOptionsT);
+                 }else if(diaThis.clickVideo=='vThree'){
+                   diaThis.enterStream(diaThis.playerOptionsTh);
+                 }else if(diaThis.clickVideo=='vFour'){
+                   diaThis.enterStream(diaThis.playerOptionsF);
+                 }else{
+
+                 };
+                 diaThis.open();
+
+               }else {
+                 //-------------
+                 var cameraUrl = 'rtmp://' + cameraDate.ip + ':1935/live/live';
+                 //this.videoSrc = cameraUrl;
+                 console.log(diaThis.clickVideo);
+                 diaThis.streams.rtmp=cameraUrl;
+                 if(diaThis.clickVideo=='vOne'){
+                   diaThis.enterStream(diaThis.playerOptions);
+                 }else if(diaThis.clickVideo=='vTwo'){
+                   diaThis.enterStream(diaThis.playerOptionsT);
+                 }else if(diaThis.clickVideo=='vThree'){
+                   diaThis.enterStream(diaThis.playerOptionsTh);
+                 }else if(diaThis.clickVideo=='vFour'){
+                   diaThis.enterStream(diaThis.playerOptionsF);
+                 }else{
+
+                 };
+
+                 diaThis.dialogVisible = false;
+                 //
+               };//else
+
+
+             };
+          };//
+          //--------------------------
+
+        };//edit
+      });
+
+
+    //};//
+
+    //mapClick=localStorage.getItem('mapClick');
+    localStorage.setItem('clickMap','2');
+   //------------------------
+    //p2ptest
+    let sPeerID = 'b000300400072';
+    let sType = 0;
+    let sEncrypt=0;
+    let sListenAddr='127.0.0.0.1:8421';
+    let sClientAddr='127.0.0.1:9006';
+
+    let pep=tunnel.pgConnectAdd(sPeerID,sType,sEncrypt,sListenAddr,sClientAddr, this.back);
+
+
+    setTimeout(function () {
+      tunnel.pgConnectDelete(sPeerID,sType,sEncrypt,sListenAddr,sClientAddr);
+    },15000);
+
+    //
+  },
+  beforeUpdate(){
+    const BF=9;
+    console.log(BF);
+  },
+  updated(){
+    //---------------
+  },
+  beforeDestroy(){
+   const mapThis=this;
+         mapThis.liveMap.removeEventListener('singleclick');
+  },
+  methods: {
+    onPlayerReadied() {
+      if (!this.initialized) {
+        this.initialized = true
+        this.currentTech = this.player.techName_
+      }
+    },
+    // record current time
+    onTimeupdate(e) {
+      //console.log('currentTime', e.cache_.currentTime)
+    },
+    enterStream(date) {
+      //date.sources[1].src = this.streams.hls
+      date.sources[0].src = this.streams.rtmp;
+      date.autoplay = true;
+
+     /* this.playerOptions.sources[1].src = this.streams.hls
+      this.playerOptions.sources[0].src = this.streams.rtmp
+      console.log(this.playerOptions.sources);
+      this.playerOptions.autoplay = true*/
+
+    },
+    back(a, b) {
+      console.log('a');
+      console.log(a);
+      console.log('a');
+      console.log(b);
+    },
+    changeTech() {
+      if (this.currentTech === 'Html5') {
+        this.playerOptions.techOrder = ['html5']
+      } else if (this.currentTech === 'Flash') {
+        this.playerOptions.techOrder = ['flash']
+      }
+      this.playerOptions.autoplay = true
+    },
+    dialogHide(){
+      this.dialogVisible=false;
+      this.liveMap.target(null);
+    },
+    imgMap(date){
+      console.log(date);
+      judge=date;
+      this.clickVideo=date;
+
+      console.log(this.clickVideo);
+
+      this.dialogVisible=true;
+      this.liveMap.target(null);
+
+      var me=this;
+      //console.log(date);
+      //
+      setTimeout(function(){
+        if(me.dialogVisible){
+          me.liveMap.target(me.$refs.mybox);
+        }
+      },100)
+    },
+    play(){
+      this.player.play();
+    },
+    open(){
+      this.$message({
+        message: '该设备无直播视频源!',
+        type: 'warning',
+        center:true
+      });
+    },
+    upFloor(){
+      var self=this;
+      module.upFloor(clickSuccess);
+      function clickSuccess(evevt){
+
+      };
+    },
+    downFloor(){
+      var self=this;
+      module.downFloor(clickSuccess);
+      function clickSuccess(event){
+
+      };
+    },
+    // listen event
+    onPlayerPlay(player) {
+       console.log('player play!', player)
+    },
+    onPlayerPause(player) {
+       console.log('player pause!', player)
+    },
+    onPlayerEnded(player) {
+      console.log('player ended!', player)
+    },
+    onPlayerLoadeddata(player) {
+       console.log('player Loadeddata!', player)
+    },
+    onPlayerWaiting(player) {
+      // console.log('player Waiting!', player)
+    },
+    onPlayerPlaying(player) {
+      // console.log('player Playing!', player)
+    },
+    onPlayerTimeupdate(player) {
+      // console.log('player Timeupdate!', player.currentTime())
+    },
+    onPlayerCanplay(player) {
+      // console.log('player Canplay!', player)
+    },
+    onPlayerCanplaythrough(player) {
+      // console.log('player Canplaythrough!', player)
+    },
+    // or listen state event
+    playerStateChanged(playerCurrentState) {
+      // console.log('player current update state', playerCurrentState)
+    },
+    // player is ready
+    playerReadied(player) {
+      // seek to 10s
+      console.log('example player 1 readied', player);
+      player.currentTime(10)
+      // console.log('example 01: the player is readied', player)
+    }
+
+  }
+}
+</script>
+
+<style scoped lang="scss">
+  .par-state {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    /*border:1px solid #ff0000;*/
+  }
+  .el-row{
+    width: 100%;
+  }
+  .el-col {
+    border-radius: 4px;
+    height: 40vh;
+    margin: 3px auto;
+    /*border:1px solid #0000;*/
+    display: inline-block;
+    position: relative;
+  }
+  #videoPlayer{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /*border: 2px solid #FF0000;*/
+  }
+  .bg-purple-dark {
+    background: #99a9bf;
+  }
+  .bg-purple {
+    background: #d3dce6;
+  }
+  .bg-purple-light {
+    background: #e5e9f2;
+  }
+  .grid-content {
+    border-radius: 4px;
+    min-height: 36px;
+  }
+  .videoIcon{
+    position: absolute;
+    top: 20px;
+    width: 20px;
+    right: 20px;
+    /*border: 1px solid #ff0000;*/
+    /*z-index: 2011;*/
+  }
+
+/*map*/
+  /**/
+  .dialog{
+    width: 100%;
+    height: 100%;
+    /*border:1px solid #ff0000;*/
+    border-radius: 3px;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    /*z-index: 2010;*/
+    background: rgba(0,0,0,0.4);
+    text-align: center;
+    display: block;
+  }
+  .dialogInfo{
+    width: 40vw;
+    height: 50vh;
+    /*min-width: 400px;*/
+    min-height: 400px;
+    /*border:1px solid #ff0000;*/
+    border-radius: 3px;
+    position: relative;
+    top: 20vh;
+    left: 24%;
+    background: white;
+    /*z-index: 2001;*/
+  }
+  .dialogInfo>ul{
+    width: 40vw;
+    height: 50vh;
+    //min-height: 400px;
+    /*min-width: 400px;*/
+    /*border:1px solid #ff0000;*/
+  }
+  .dialogInfo>ul>li:nth-child(1){
+    height: 8vh;
+    min-height: 50px;
+    line-height: 50px;
+    text-align: right;
+    /*border: 1px solid #00FF00;*/
+    border-bottom: 1px solid #cccccc;
+  }
+  .dialogInfo>ul>li:nth-child(1)>ul{
+    width: 40vw;
+
+  }
+  .dialogInfo>ul>li:nth-child(1)>ul>li:nth-child(1){
+    width: 35vw;
+    /*border: 1px solid #00FF00;*/
+    float: left;
+    text-align: center;
+  }
+  .dialogInfo>ul>li:nth-child(1)>ul>li:nth-child(2){
+    width: 5vw;
+    /*border: 1px solid #00FF00;*/
+    float: left;
+    text-align: center;
+  }
+  .dialogInfo>ul>li:nth-child(2){
+    height: 42vh;
+    /*border:1px solid #00FF00;*/
+  }
+/**/
+  #map{
+    width: 35vw;
+    height: 40vh;
+    /*min-width: 400px;*/
+    min-height: 340px;
+    /*border:2px solid #00FF00;*/
+    position: absolute;
+    /*z-index: 2001;*/
+  }
+  #floor{
+    /*border: 1px solid #ff0000;*/
+    width: 35px;
+    height: 35px;
+
+  }
+  .up{
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    text-align: center;
+    /*border:1px solid red;*/
+    position: absolute;
+    right: 20px;
+    bottom:205px;
+    z-index: 2010;
+  }
+  .down{
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    text-align: center;
+    /*border:1px solid red;*/
+    position: absolute;
+    right: 20px;
+    bottom:135px;
+    z-index: 2010;
+  }
+
+/**/
+.liveView {
+  position: relative;
+  width: 50vw;
+  height: 50vh;
+  /*border:1px solid #ff0000;*/
+}
+
+.selectWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  line-height: 30px;
+  margin: 20px;
+  vertical-align: baseline;
+}
+
+.inputWrapper {
+  width: 500px;
+  margin: 0 auto;
+}
+
+.buttonWrapper {
+  text-align: center;
+}
+</style>

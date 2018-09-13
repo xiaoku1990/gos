@@ -1,0 +1,196 @@
+<template>
+  <div class="landing">
+    <div class="login-con1"><div style="margin-left: 40px"><img src="~@/assets/images/logoIcon.png"></div></div>
+    <div class="login-con2">
+    <div class="login-con">
+      <div class="logo-title">
+        <h2>登录</h2>
+      </div>
+      <el-form :model="loginForm" status-icon :rules="loginRules" label-width="80px" ref="loginForm"  class="demo-ruleForm logon-form">
+        <el-form-item label="用户名" prop="nick_name" class="login-div">
+          <el-input type="text" class="login-input" v-model="loginForm.nick_name" auto-complete="off"  placeholder="请输入用户名"></el-input>
+        </el-form-item>
+        <el-form-item label="密码" prop="user_pwd"  class="login-div">
+          <el-input type="password" class="login-input" v-model="loginForm.user_pwd" auto-complete="off"  placeholder="请输入密码"></el-input>
+        </el-form-item>
+        <el-form-item  class="login-div-button">
+          <el-button type="primary" class="log-btn" :loading="loading" @click="loginSubmit">登录</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+    </div>
+
+    <div class="login-con1"></div>
+    <!---->
+
+  </div>
+  <!---->
+
+  <!---->
+</template>
+
+<!---->
+<script>
+    import store from '@/store/index'
+    export default {
+      name: "login",
+      data() {
+
+        let validateUserName = (rule, value, callback) => {
+          if (value === '') {
+            callback(new Error('请输入用户名'));
+          } else {
+            callback();
+          }
+        };
+        let validatePassword = (rule, value, callback) => {
+          if (value === '') {
+            callback(new Error('请输入密码'));
+          }else {
+            callback();
+          }
+        };
+        return {
+          loginForm: {
+            build_id: this.$BuildId,
+            nick_name: '',
+            user_pwd: ''
+          },
+          loading: false,
+          loginRules: {
+            nick_name: [
+              { validator: validateUserName, trigger: 'blur' }
+            ],
+            user_pwd: [
+              { validator: validatePassword, trigger: 'blur' }
+            ]
+          }
+        };
+      },
+      mounted(){//生命周期函数(vue实例创建完成))
+
+      },
+      methods: {
+        loginSubmit() {
+          this.$refs['loginForm'].validate((valid) => {
+            if (valid) {
+              this.loading = true;
+              this.$http({
+                method: 'post',
+                url: `${this.$Api}/GOSSystem/userLogin`,
+                params: this.loginForm
+              }).then(response => {
+                this.loading = false;
+                if (response.data.result === 1) {
+                  this.$notify({
+                    title: '登录成功',
+                    message: response.data.msg,
+                    duration: 888,
+                    type: 'success'
+                  });
+                  localStorage.setItem('userInfo', JSON.stringify(response.data.user_info));
+                  eventbus.$emit('onUserLogin', response.data.user_info);
+                  this.$router.push("/info");
+                } else {
+                  this.$notify({
+                    title: '登录失败',
+                    message: response.data.msg,
+                    duration: 2000,
+                    type: 'error'
+                  });
+                }
+              }).catch((error) => {
+                this.loading = false;
+                this.$notify({
+                  title: 'ERROR',
+                  message: `${error}`,
+                  duration: 2000,
+                  type: 'error'
+                });
+              });
+            } else {
+              return false;
+            }
+          });
+        }
+      }
+    }
+</script>
+
+<style scoped lang="scss">
+.landing{
+  display: flex;
+  flex-flow: column nowrap;
+  place-content: flex-end flex-start;
+  align-items: flex-start;
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  top: 0px;
+  left: 0px;
+  align-items: baseline;
+  align-content: stretch;
+  /*background:url("../assets/images/logoin.jpg") #000;*/
+  h2{
+    margin: 30px 0px 15px 0px;
+    font-weight: normal;
+  }
+  .login-con1{
+    width: 100%;
+    align-self: auto;
+    flex: 0.8 1 auto;
+    order: 10;
+    flex-basis: content;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    flex-flow: row;
+    background: #fff;
+    /*border:1px solid #ff0000;*/
+  }
+  .login-con2{
+    width: 100%;
+    align-self: auto;
+    flex: 9 1 auto;
+    order: 10;
+    //background: linear-gradient(45deg, rgb(71, 86, 144) 0px, rgb(9, 14, 33) 100%) center center / cover;
+    background:  url(~@/assets/images/bgLogImg.png) no-repeat;
+    object-fit: cover;
+  }
+  .login-con{
+    position: absolute;
+    top: 50%;
+    /* margin-top: -180px; */
+    right: 0%;
+    width: 396px;
+    border: 4px solid #457f9e5e;
+    background: #fff;
+    border-radius: 3px;
+    transform: translate(-37%, -50%);
+    border:1px solid #00FF00;
+  }
+  .el-select{
+    width: 100%;
+  }
+  .logon-form{
+    padding: 24px 0px 16px 0px;
+  }
+  .logo-title{
+    width: 100%;
+    text-align: center;
+    img{
+      width: 76px;
+    }
+  }
+  .logo-i{
+    position: absolute;
+    color: #fff;
+    z-index: 1;
+    font-size: 1rem;
+    width: 25px;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+  }
+}
+</style>

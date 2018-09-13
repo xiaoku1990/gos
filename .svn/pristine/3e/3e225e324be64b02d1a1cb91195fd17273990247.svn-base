@@ -1,0 +1,56 @@
+let secondServeRunning = false;
+let runCount = 0; //运行计数，防止太大，最大到0xFFFFFFFF
+
+const secondServeTaskFuncList = [];
+const secondServeTaskTimeout = 1000;
+
+const secondServeTask = function () {
+  let taskFuncListNull = true;
+  // console.log(`[秒服务]: 我在运行，时间:${(new Date).getMinutes()}:${(new Date).getSeconds()}, 计数:${runCount}`);
+  for(let i in secondServeTaskFuncList) {
+    if(secondServeTaskFuncList[i].vue && !secondServeTaskFuncList[i].vue._isDestroyed) {  //只有在对应vue对象还存在的时候才调用他的任务
+      taskFuncListNull = false;
+      if(!(runCount % secondServeTaskFuncList[i].second)) {  //只有到本任务间隔时间才调用
+        // console.log(`run task "${secondServeTaskFuncList[i].name}"`)
+        secondServeTaskFuncList[i].func();
+      }
+    } else {
+      // console.log(`[秒服务]: "${secondServeTaskFuncList[i].name}"调用这个任务的vue不存在啦，于是我在任务列表里赶走它！`);
+      delete secondServeTaskFuncList[i];
+    }
+  }
+  runCount = ((runCount != 0xFFFFFFFF)? (runCount + 1) : 0);
+
+  if(taskFuncListNull) {
+    // console.log('[秒服务]: 没有任务，我就先去睡觉啦_(:3」∠)_');
+    secondServeRunning = false;
+    return;
+  }
+
+  setTimeout(() => {
+    secondServeTask();
+  }, secondServeTaskTimeout);
+};
+
+/**
+ * 秒服务
+ * @param vue: vue对象，初始化vue的时候传入this即可
+ * @param name: 任务名，如果任务列表中存在同名将不再添加，用来防止重复
+ * @param func: 任务函数，定时执行的就是它
+ * @param second: 间隔时间，单位秒
+ */
+export function secondServe(vue, name, func, second) {
+  if(typeof(secondServeTaskFuncList[name]) !== 'undefined') {
+    // console.log(`[秒服务]: 已经有"${secondServeTaskFuncList[name]}"这个任务啦，不要重新添加人家啊!`)
+    return;
+  }
+
+  secondServeTaskFuncList.push({vue: vue, name: name, func: func, second: second });
+  if(!secondServeRunning) {
+    // console.log('[秒服务]: 有任务，人家起床干活啦！');
+    secondServeRunning = true;
+    secondServeTask();
+  } else {
+    // console.log('[秒服务]: 人家已经跑起来了，不要再催啦！');
+  }
+}

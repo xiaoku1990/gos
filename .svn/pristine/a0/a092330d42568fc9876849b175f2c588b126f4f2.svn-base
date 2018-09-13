@@ -1,0 +1,1057 @@
+<template>
+  <div class="par-state main-padding" v-loading="loading">
+    <el-row :gutter="10">
+      <el-col class="col-one" :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
+        <!--<div class="grid-content bg-purple"></div>-->
+        <div class="block">
+          <!--<span class="demonstration">{{videoDateValue}}</span>-->
+          <el-date-picker
+            type="date"
+            v-model="choseDateValue"
+            format="yyyy年MM月dd日"
+            value-format="yyyyMMdd"
+            :picker-options="choseDateOptions"
+            @change="changePicker"
+            placeholder="选择日期">
+          </el-date-picker>
+          <el-button @click="getVideoList">视频列表</el-button>
+
+
+        </div>
+        <!---->
+      </el-col>
+      <el-col class="col-two" :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
+
+
+       <div  class="grid-content bg-purple" id="vOne" @click.prevent="dialog('vOne',$event)"  >
+
+         <video-player class="vjs-custom-skin" ref="videoPlayer" :options="playerDemandOptions">
+         </video-player>
+
+
+          <img @click.self="imgDemandMap()" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+        </div>
+
+      </el-col>
+      <el-col class="col-three" :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
+
+        <el-table
+          :data="videoList"
+          height="300"
+          style="width: 100%;overflow-y: auto">
+         <!-- <el-table-column
+            type="index"
+            style="width: 25%"
+          >
+          </el-table-column>-->
+          <el-table-column
+            label="视频顺序" style="width: 25%">
+            <template slot-scope="scope">
+              <i class="el-icon-time"></i>
+              <span style="margin-left: 10px">{{ scope.row.index+1 }}</span>
+            </template>
+          </el-table-column>
+          <!--<el-table-column
+            label="视频结束ID" style="width: 25%">
+            <template slot-scope="scope">
+              <el-popover trigger="hover" placement="top">
+                <div slot="reference" class="name-wrapper">
+                  <el-tag size="medium">{{ scope.row.end_ID }}</el-tag>
+                </div>
+              </el-popover>
+            </template>
+          </el-table-column>-->
+          <el-table-column
+            label="视频开始时间/结束时间"
+            style="width: 35%">
+            <template slot-scope="scope">
+                <div slot="reference" class="name-wrapper">
+                  {{ scope.row.showStart }}~{{scope.row.showEnd}}
+                </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="视频时长"
+            style="width: 20%">
+            <template slot-scope="scope">
+                <div slot="reference" class="name-wrapper">
+                  {{ scope.row.videoTime }}
+                </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"  style="width: 20%;text-align: center;">
+            <template slot-scope="scope">
+              <el-button
+                size="mini"
+                @click="handlePlay(scope.$index, scope.row)">播放</el-button>
+             <!-- <el-button
+                size="mini"
+                type="danger"
+                @click="handleDownload(scope.$index, scope.row)">下载</el-button>-->
+            </template>
+          </el-table-column>
+        </el-table>
+
+
+
+
+      </el-col>
+
+    </el-row>
+    <!---->
+    <!--弹出框-->
+    <div class="demandDialog"  v-show="mapVisible">
+
+
+      <div class="demandDialogInfo" :xs="24" :sm="12" :md="12" :lg="12" :xl="12" :offset="6">
+        <ul>
+          <li>
+            <ul>
+              <li> 请选择视频点播的设备</li>
+              <li> <i class="el-icon-error" @click.stop="dialogDemandHide()"></i> </li>
+            </ul>
+          </li>
+          <li>
+            <!---->
+
+            <!---->
+            <div id="demandMap"   ref="myMap" v-show="mapShow">
+
+
+            </div>
+            <!---->
+            <img src="../../../static/img/up.png" alt="up" @click="upFloor()" class="up">
+            <div id="floor">
+              <ul id="floorUl" ref="floorUl">
+
+              </ul>
+            </div>
+            <img src="../../../static/img/down.png" alt="down" @click="downFloor()" class="down">
+            <!---->
+          </li>
+        </ul>
+        <!---->
+      </div>
+      <!---->
+    </div>
+    <!---->
+
+    <!---->
+  </div>
+  <!---->
+
+</template>
+
+<script>
+   import { module } from "../../../static/ol/findMapOOB"
+   import  tunnel from "../../../static/ol/shuidao"
+   //穿透
+   //import { videoPlayer } from "vue-video-player"
+   //---------------------------------------------
+
+ var myVideo;
+    export default {
+
+        name: "video-demand",
+        data(){
+          return{
+            value1:'',
+            mapVisible:false,
+            mapShow:true,
+            choseDateValue:'',//选择的日期
+            videoDateValue:[],//获取的所有有视频的日期()
+            demand:true,
+            demandMap:'',
+            featureDemand:'',//点播p2p的设备要素
+            sPeerID:'',//新的设备标识
+            oldsPeerID:'',//上一个设备的标识
+            sClientAddr:'',//隧道的获取数据客户端地址
+            sClientVideoAddr:'',//隧道观看视频的客户端地址
+            cameraResult:'',//日期返回数据
+            cameraPostDate:'',//摄像头获取视频列表所需参数
+            videoList:[],//获取摄像头的某天的视频列表
+            loading:false,//加载动画
+            deviceId:'',//设备Id
+            map:'',//点播地图
+            choseDateOptions:{
+              disabledDate: (time) => {
+                if(typeof(this.videoDateValue[0])!== 'undefined') {
+                     for(var a=0;a<this.videoDateValue.length;a++){
+                       if(time.toLocaleDateString()==this.videoDateValue[a].date){
+
+                           return false;
+                       };
+                     };
+                     return true;
+                    //
+                 }
+             }
+            },
+            playerDemandOptions: {
+              overNative: true,
+              autoplay: false,
+              controls: true,
+              techOrder: ['html5', 'flash'],
+              sourceOrder: true,
+              aspectRatio: '16:9',
+              flash: {
+                hls: { withCredentials: false },
+                swf: '/static/media/video-js.swf'
+              },
+              html5: { hls: { withCredentials: false } },
+              sources: [
+                {
+                  type: 'application/x-mpegURL',
+                  src:''
+                },
+                {
+                  withCredentials: false,
+                  type: 'application/x-mpegURL',
+                  src: ''
+                }
+              ],
+              poster:'/static/img/video/camera.png',
+              notSupportedMessage: '此视频暂无法播放，请稍后再试',
+              height:'350'
+
+            /*  //
+              autoplay: false,
+              controls: true,
+              sources: [{
+                type: "rtmp/flv",
+                src:'http://192.168.0.228/live/20180504/8/10658837017.m3u8'
+                //src: "https://cdn.theguardian.tv/webM/2015/07/20/150716YesMen_synd_768k_vp8.webm"
+              }],
+              height:'350'*/
+            }
+
+
+          }
+        },
+        mounted(){
+
+           var demandThis=this;
+
+          //map
+          var d_map= new module.BeefindMap({
+            "target": demandThis.$refs.myMap,
+            "floorUl":demandThis.$refs.floorUl,
+            "city_id":"F0021",//城市ID
+            "build_id":this.$BuildId,//項目ID
+            'urlLocal':this.$Api,
+            "floor_id" :"",//樓層ID
+            "floorBarVisible":true,//楼层控件
+            "carLayerVisible":true,//车位层是否显示(默认显示)
+            "carPortLayerVisible":true,//车位号层是否显示(默认显示)
+            "interLayerVisible":true,//兴趣点层是否显示(默认显示)
+            "deviceLayerVisible":true//设备层是否显示(默认不显示)
+          });//
+          //
+          demandThis.map=d_map;
+          //console.log(demandThis.demandMap);
+          //var featureT;
+          var localUrl='http://192.168.0.100:8421';
+          var localVideoUrl='http://192.168.0.100:8821';
+          demandThis.map.on('click',function (event) {
+
+            var featureT =demandThis.map.forEachFeatureAtPixel(event.pixel, function (featureT) {
+              return featureT;
+            });
+            if (featureT) {
+               var clickvideo=localStorage.getItem('clickMap');
+              //----------------------
+              if(clickvideo=='3'){
+
+                if(featureT.type=='camera'){
+                   demandThis.featureDemand=featureT;
+                  let fmn;//用于拼接的设备ID(5位)前面补0
+                  let rannum;//用于拼接的分区ID(3位)前面补0
+                  let buID;//用于拼接的项目ID(首字符小写)
+                  if(featureT.param.fmn>=10000){
+                    fmn=featureT.param.fmn;
+                  }else if(featureT.param.fmn>=1000){
+                    fmn='0'+featureT.param.fmn;
+                  }else if(featureT.param.fmn>=100){
+                    fmn='00'+featureT.param.fmn;
+                  }else if(featureT.param.fmn>=10){
+                    fmn='000'+featureT.param.fmn;
+                  }else{
+                    fmn='0000'+featureT.param.fmn;
+                  };//
+                  //-------------------------
+                  if(featureT.param.rannum>=100){
+                    rannum=featureT.param.rannum;
+                  }else if(featureT.param.rannum>=10){
+                    rannum='0'+featureT.param.rannum;
+                  }else {
+                    rannum = '00' + featureT.param.rannum;
+                  };
+                  //-------------------------
+                  buID= demandThis.$BuildId.substring(0,1).toLocaleLowerCase()+ demandThis.$BuildId.substring(1);
+                  let sPeerID=buID+rannum+fmn;//新的ID
+                  let sType = 0;
+                  let sEncrypt=0;
+                  let sListenAddr='127.0.0.1:8421';//
+
+                  //直播的端口:1935(RTMP)
+                  let sClientAddr='127.0.0.1:12351';//(点播(获取数据)要用的url)
+
+                  demandThis.sClientAddr=sClientAddr;
+
+                  demandThis.sPeerID=sPeerID;
+                  demandThis.oldsPeerID=localStorage.getItem('demandSPeerId');
+
+
+                  demandThis.loading=true;
+
+                  //删除并建立获取视频数据的隧道
+                  tunnel.pgConnectDelete(demandThis.oldsPeerID,sType,sEncrypt,sListenAddr,sClientAddr,demandThis.delete);
+
+                  localStorage.setItem('demandSPeerId',demandThis.sPeerID);
+
+                  //console.log('rannum='+featureT.param.rannum+'; fmn='+featureT.param.fmn);
+                  /*var cameraIp = module.getVideoUrl(localUrl, featureT.param.fmn, featureT.param.rannum);
+                  console.log(cameraIp);
+                  var cameraUrl;
+                  if(cameraIp.ip!=""&&cameraIp.ip!=undefined&&cameraIp.ip!=null){
+                    cameraUrl = 'http://' + cameraIp.ip + ':8421';
+                    var localVideoUrl= 'http://192.168.0.100:8821';
+                  }else {
+                    cameraUrl="";
+                  };//
+                  //console.log(cameraUrl);
+                  //var cameraDate = module.getCameraDate(localVideoUrl,feature.build_id,feature.param.rannum,feature.param.fmn);
+                  if(cameraUrl=='http://192.168.0.0:8421'||cameraUrl==""||cameraUrl==undefined||cameraUrl==null){
+                    demandThis.open4();
+                  }else {
+                    demandThis.loading=true;
+                    //摄像头服务
+                    var cameraDate = module.getCameraDate(cameraUrl,featureT.build_id,featureT.param.rannum,featureT.param.fmn);
+                    console.log(cameraDate);
+                    //console.log(arrA);
+                    //本地视频服务
+                    demandThis.device_id=featureT.param.fmn;
+                    var localCameraDate = module.getCameraDate(localVideoUrl,featureT.build_id,featureT.param.rannum,featureT.param.fmn);
+                    //console.log(localCameraDate);
+                    if(cameraDate.result==0&&localCameraDate.length==0){
+                      demandThis.open2();
+                      demandThis.loading=false;
+                      // console.log(cameraDate);
+                    }else {
+                      demandThis.loading=false;
+                      //设备有视频;
+                      var arrA=[];
+                      demandThis.cameraResult=cameraDate;
+                      if(cameraDate.result!=0){
+                        arrA=demandThis.combineCameraDate('camera',cameraDate.date_list);
+                      };
+                      var arrB=demandThis.combineCameraDate('local',localCameraDate);
+                      var arrC=arrA.concat(arrB);
+                      console.log(arrC);
+
+                      console.log(cameraDate);
+
+                      //做个判断(if(camera){}else{localVideo})
+
+                      //
+                      var cameraVideoUrl = 'http://' + cameraIp.ip + ':8421';
+                      var demandVideoUrl = 'http://' + cameraIp.ip;
+                      var cameraVideoDate={
+                        demandVideoUrl:demandVideoUrl,
+                        cameraUrl:cameraVideoUrl,
+                        build_id:featureT.build_id,
+                        area_id:featureT.param.rannum,
+                        dev_id:featureT.param.fmn
+                      };
+                      demandThis.cameraPostDate=cameraVideoDate;
+                      //
+                      demandThis.open1();
+                      //console.log(cameraDate);
+                      //demandThis.videoDateValue=cameraDate.date_list;
+                      demandThis.videoDateValue=arrC;
+                      demandThis.videoDateValue=demandThis.changeDateFormat(demandThis.videoDateValue,demandThis.videoDateValue.length);
+                      console.log(demandThis.videoDateValue);
+                      demandThis.mapVisible = false;
+
+                    };// if(cameraDate.result==0&&localCameraDate.length==0){
+                    //console.log(cameraUrl);
+                    //diaThis.streams.rtmp=cameraUrl;
+
+                  };//if(cameraUrl=='http://192.168.0.0:8421')*/
+
+                };// if(featureT.type=='camera')
+
+                //---------------
+              };// if(clickvideo=='1')
+              //-----------------------
+            };//(featureT)
+
+          });
+          //
+          localStorage.setItem('clickMap','3');
+
+        //-------
+        },
+        beforeDestroy(){
+          const mapThis=this;
+          mapThis.map.removeEventListener('singleclick');
+        },
+      methods:{
+        handleApply () {
+          this.playerOptions.sources[0].src = this.url
+        },
+        dialog(value,e){
+          //console.log(value);
+          this.dialogVisible=true;
+          //var srcVideo='rtmp://live.hkstv.hk.lxdns.com/live/hks';
+        },
+        dialogDemandHide(){
+          this.mapVisible=false;
+          this.map.target(null);
+          //---------------
+        },
+        imgDemandMap(){
+          this.mapVisible=true;
+          //this.map.init();
+          var me=this;
+          //
+          me.map.target(null);
+          setTimeout(function(){
+            if(me.mapVisible){
+              me.map.target(me.$refs.myMap);
+            }
+          },100)
+
+        },
+        changePicker(){
+          console.log('changePicker');
+          console.log(this.cameraResult.result);
+          if(this.cameraResult.result!=1){
+            this.open3();
+            this.choseDateValue="";
+          };
+          console.log(this.choseDateValue);
+          if(this.choseDateValue==null){
+             this.videoList=[];
+             this.videoDateValue=[];
+            this.cameraResult.result=0;
+            this.playerDemandOptions.sources[0].src="";
+            this.playerDemandOptions.autoplay=false;
+          }else {
+            this.videoList=[];
+            this.playerDemandOptions.sources[0].src="";
+            this.playerDemandOptions.autoplay=false;
+          };
+
+        },
+        getVideoList(){
+          //-----------
+          //this.loading=true;
+          //console.log(this.loading);
+          //console.log(this.videoDateValue.length!=0);
+
+           if(this.videoDateValue.length!=0){
+
+               //console.log(this.choseDateValue);
+             if(this.choseDateValue!=""&&this.choseDateValue!=undefined&&this.choseDateValue!=null){
+
+               this.loading=true;
+               //console.log(this.choseDateValue);
+               var setDate=[{
+                 date:this.choseDateValue
+               }];
+               var choseChangeDate=this.changeDateFormat(setDate,setDate.length);
+
+                console.log(choseChangeDate);
+                console.log(this.videoDateValue);
+                //
+                var urlType;
+
+                for(var r=0;r<this.videoDateValue.length;r++){
+                  if(this.videoDateValue[r].date==choseChangeDate[0].date){
+                    urlType=this.videoDateValue[r].type;
+                    console.log(urlType);
+                    break;
+                  }else {
+                    urlType='camera';
+                  };
+                };
+                //
+
+               console.log(urlType);
+               var cameraUrl1;
+               if(urlType=='local'){
+                 cameraUrl1='http://beefindtech.cn:8907/getVideoList';//test(B0007)
+                // cameraUrl1='http://b1005.51beefindtech.com:7080/getVideoList';//formal(正式项目)(B0005)
+               }else {
+                 //(差穿透的会换地址)
+                 cameraUrl1=this.cameraPostDate.cameraUrl+'/getVideoList';
+               };//
+              //console.log(cameraUrl1);
+
+              //console.log(this.cameraPostDate);
+              var date={
+                build_id:this.cameraPostDate.build_id,
+                area_id:this.cameraPostDate.area_id,
+                dev_id:this.cameraPostDate.dev_id,
+                date:this.choseDateValue
+              };//
+              this.playerDemandOptions.sources[0].src="";
+              this.playerDemandOptions.autoplay=false;
+              //
+              this.vuePost(date,cameraUrl1,urlType);
+             }else{
+               //this.loading=false;
+               //console.log('else!');
+               this.open1();
+             };////
+             //
+
+
+            }else{
+              //this.loading=false;
+              this.open3();
+            };
+
+
+
+          //------------
+
+        },
+        changeDateFormat(date,length){
+           for(var h=0;h<length;h++){
+              var str1=date[h].date.substr(0,4);
+              var str2=date[h].date.substr(4,2);
+              if(parseFloat(str2)>=10){
+                str2=str2;
+              }else {
+                str2=str2.substr(1,1);
+              };
+              var str3=date[h].date.substr(6,2);
+             if(parseFloat(str3)>=10){
+               str3=str3;
+             }else {
+               str3=str3.substr(1,1);
+             };
+              var str='/';
+              var str4=str1+str+str2+str+str3;
+              date[h].date=str4;
+           };
+           return date;
+        },
+        combineCameraDate(type,date){
+          //合并视频日期函数
+          for(var d=0;d<date.length;d++){
+            var dateNew=date[d];
+            date[d]=new Object();
+              date[d].date=dateNew;
+              date[d].type=type;
+          };
+          return date;
+
+        },
+        open1() {
+          this.$message({
+            message: '请选择视频播放日期!',
+            type: 'success',
+            center:true
+          });
+        },
+        open2() {
+          this.$message({
+            message: '对不起,当天没有视频!',
+            type: 'warning',
+            center:true
+          });
+        },
+        open3(){
+          this.$message({
+            message: '请选择设备!',
+            type: 'warning',
+            center:true
+          });
+        },
+        open4() {
+          this.$message({
+            message: '当前设备没有视频源!',
+            type: 'warning',
+            center:true
+          });
+        },
+        warnP2p(){
+          this.$message({
+            message: 'p2p连接失败!',
+            type: 'warning',
+            center:true
+          });
+        },
+        upFloor(){
+          var self=this;
+          module.upFloor(clickSuccess);
+          function clickSuccess(evevt){
+
+          };
+        },
+        downFloor(){
+          var self=this;
+          module.downFloor(clickSuccess);
+          function clickSuccess(event){
+
+          };
+        },
+        vuePost(date,url,urlType){
+
+          var _this=this;
+          var reqData= date;
+          //
+          var params = new URLSearchParams();
+          params.append('build_id', reqData.build_id);
+          params.append('area_id', reqData.area_id);
+          params.append('dev_id', reqData.dev_id);
+          params.append('date', reqData.date);
+          this.$http.post(
+            url,
+              params,
+            {
+                dataType:'json',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+                }
+             }
+            ).then(function (response) {
+              //获取的(点播列表)//
+            _this.videoList=response.data.video_list;
+            //------------------
+            console.log(_this.videoList);
+            //-------------------
+             //更改点播列表的属性
+            _this.addAttribute(_this.videoList,urlType);
+            //console.log(response);
+            _this.loading=false;
+
+          })
+            .catch(function (error) {
+              _this.loading=false;
+              //console.log('error='+error);
+            });
+
+        },
+        handlePlay(index, row) {
+          console.log(index, row);
+          //点击视频播放列表进行播放
+          this.playerDemandOptions.sources[0].src=row.url;
+          this.playerDemandOptions.autoplay=true;
+
+
+        },
+        handleDownload(index, row) {
+          console.log(index, row);
+        },
+        formatDate(now,type) {
+          //console.log(now);
+          var year=now.getFullYear();
+           var month=now.getMonth()+1;
+           var date=now.getDate();
+           var hour=now.getHours();
+           var minute=now.getMinutes();
+           var second=now.getSeconds();
+           if(type=='hour'){
+             //-------------------
+             if(minute==0){
+               return second+'秒';
+             }else if(minute<=60){
+               return +minute+'分'+second+'秒';
+             };//
+             //---------------------
+           }else if(type=='onlyHour'){
+             return hour;
+           }else if(type=='ymd'){
+             return year+'/'+''+month+'/'+''+date;
+           }else{
+             return year+'/'+''+month+'/'+''+date+'/'+''+hour+':'+''+minute+':'+second;
+           };
+
+          //return now;
+        },
+        addAttribute(date,urlType){
+           var startStamp=1514736000000;//2018年1月1日000;
+           for(var c=0;c<date.length;c++){
+               var timeDate=parseInt(date[c].start)+parseInt(startStamp);
+               var timeStart=parseInt(date[c].start)+parseInt(startStamp);
+               var timeEnd=parseInt(date[c].end)+parseInt(startStamp);
+             //console.log(timeDate);
+             date[c].videoTime= this.formatDate(new Date(timeEnd-timeStart),'hour');
+             date[c].index=c;
+
+             date[c].time=this.formatDate(new Date(timeDate),'onlyHour');
+
+             date[c].showStart=this.formatDate(new Date(timeStart),'fullYear');
+
+             date[c].showEnd=this.formatDate(new Date(timeEnd),'fullYear');
+               //console.log(date[c].time);
+             if(urlType=='camera'){
+               //摄像头的穿透!
+               date[c].url=this.cameraPostDate.demandVideoUrl+'/live/'+this.choseDateValue+'/'+date[c].time+'/'+date[c].start+'.m3u8';
+             }else {
+               date[c].url='http://beefindtech.cn:8907/live/'+this.device_id+'/'+this.choseDateValue+'/'+date[c].time+'/'+date[c].start+'.m3u8';//test(B0007)
+               //date[c].url='http://b2005.51beefindtech.com:7080/live/'+this.device_id+'/'+this.choseDateValue+'/'+date[c].time+'/'+date[c].start+'.m3u8';//(B0005)
+             };
+             //console.log(date[c].url);
+           };
+        },
+        back(a, b) {
+          console.log('back!!');
+          var b=JSON.parse(b);
+
+          console.log(b);
+
+          this.dialogDemandHide();
+          let sType = 0;
+          let sEncrypt=0;
+          let sListenVideoAddr='127.0.0.1:80';//
+          let sClientVideoAddr='127.0.0.1:2018';//(点播（查看视频）要用的url)
+          this.sClientVideoAddr=sClientVideoAddr;
+          //let localUrl='http://192.168.0.100:8421';
+          if(b.result=='0'){
+            this.tunnel=true;//隧道建立成功!
+
+
+            //const cameraDate = module.getVideoUrl(localUrl, this.feature.param.fmn, this.feature.param.rannum);
+
+
+            const getVideoDateUrl = 'http://' + b.clientaddr;//摄像头的URL
+            const localVideoDateUrl = 'http://beefindtech.cn:8807';//本地视频服务的URL(testB0007)
+            //const localVideoDateUrl = 'http://b1005.51beefindtech.com:7080';//本地视频服务的URL(正式项目B0005)
+            //http://beefindtech.cn:8007
+            console.log(getVideoDateUrl);
+            //
+
+            //获取摄像头的设备的有视频的日期；
+            let arrA;//
+            let arrB=[];//本地视频的日期
+            let arrC=[];//所有的有视频的日期
+            let cameraDate = module.getCameraDate(getVideoDateUrl,this.featureDemand.build_id,this.featureDemand.param.rannum,this.featureDemand.param.fmn);
+            let localCameraDate = module.getCameraDate(localVideoDateUrl,this.featureDemand.build_id,this.featureDemand.param.rannum,this.featureDemand.param.fmn);
+            console.log(cameraDate);
+            console.log(localCameraDate);
+            //arrB=localCameraDate;
+            //const test={}
+            arrB=['20180530'];//模拟获取到本地视频服务器
+            arrB=this.combineCameraDate('local',arrB);
+            console.log(arrB);
+            if(cameraDate.result=='0'){
+              this.open4();
+              //无视频源
+              this.videoDateValue=[];
+              this.loading=false;
+            }else {
+              //有视频(我才建立点播隧道)
+              //删除并建立查看视频的的隧道
+              tunnel.pgConnectDelete(this.oldsPeerID,sType,sEncrypt,sListenVideoAddr,sClientVideoAddr,this.deleteVideo);
+              //
+              this.cameraResult=cameraDate;
+              //arrA是摄像头里面的是视频(用穿透)
+              //arrB是本地服务器的视频(用花生壳)
+              //arrC是最终的视频源数组
+              arrA=this.combineCameraDate('camera',cameraDate.date_list);
+              console.log(arrA);
+              /*
+              * 这里有个数组的合并
+              * */
+             /* let cameraVideoDate={
+                demandVideoUrl:"",//视频的url
+                cameraUrl:getVideoDateUrl,//获取点播列表的Url
+                build_id:this.featureDemand.build_id,
+                area_id:this.featureDemand.param.rannum,
+                dev_id:this.featureDemand.param.fmn
+              };
+              this.cameraPostDate=cameraVideoDate;
+              //
+              this.videoDateValue=arrA;
+              this.videoDateValue=this.changeDateFormat(this.videoDateValue,this.videoDateValue.length);//是用来处理日历的
+
+              console.log(this.videoDateValue);*/
+
+              this.open1();
+              this.loading=false;
+            };//
+            //---------------
+            arrC=arrA.concat(arrB);
+            console.log(arrC);
+            if(arrC.length>=1){
+              let cameraVideoDate={
+                demandVideoUrl:"",//视频的url
+                cameraUrl:getVideoDateUrl,//获取点播列表的Url
+                build_id:this.featureDemand.build_id,
+                area_id:this.featureDemand.param.rannum,
+                dev_id:this.featureDemand.param.fmn
+              };
+              this.cameraPostDate=cameraVideoDate;
+              //
+              this.videoDateValue=arrC;
+              //操作日历
+              this.videoDateValue=this.changeDateFormat(this.videoDateValue,this.videoDateValue.length);
+
+              this.open1();
+              this.loading=false;
+            }else{
+
+            };//*/
+            //this.videoSrc = cameraUrl;
+            //console.log(this.clickVideo);
+            /*this.streams.rtmp=cameraUrl;
+            this.enterStream(this.playerOptions,this.clickVideo);
+            */
+            //
+
+          }else{
+
+            this.warnP2p();
+            this.loading=false;
+           // this.tunnel=false;
+            //穿透失敗!
+          };
+
+          //return result;
+        },
+        backVideo(a, b) {
+          console.log('back!!');
+          var b=JSON.parse(b);
+          console.log(b);
+          //let localUrl='http://192.168.0.100:8421';
+          if(b.result=='0'){
+            //添加查看视频的URL
+            this.cameraPostDate.demandVideoUrl='http://'+b.clientaddr;
+          }else {
+            this.open1();
+          };
+        },
+        delete(a, b){
+          //删除隧道的回调函数
+          console.log('delete!!!');
+          let rt=b.substring(3);
+          rt=JSON.parse(rt);
+
+          let sType = 0;
+          let sEncrypt=0;
+          let sListenAddr='127.0.0.1:8421';//
+          if(rt.result=='18'||rt.result=='0'){
+            tunnel.pgConnectAdd(this.sPeerID,sType,sEncrypt,sListenAddr,this.sClientAddr, this.back);
+          }else {
+
+          };//
+          this.dialogDemandHide();
+        },
+        deleteVideo(a, b){
+          //删除隧道的回调函数
+          console.log('deleteVideo!!!');
+          let rt=b.substring(3);
+          rt=JSON.parse(rt);
+
+          let sType = 0;
+          let sEncrypt=0;
+          let sListenAddr='127.0.0.1:80';//
+          if(rt.result=='18'||rt.result=='0'){
+            tunnel.pgConnectAdd(this.sPeerID,sType,sEncrypt,sListenAddr,this.sClientVideoAddr, this.backVideo);
+          };//
+          //this.dialogDemandHide();
+        },
+      }
+    }
+</script>
+
+<style scoped lang="scss">
+  .par-state {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    /*border:1px solid #ff0000;*/
+  }
+  .el-row{
+    width: 100%;
+  }
+  .el-col {
+    border-radius: 4px;
+    /*border: 1px solid #ff3b52;*/
+  }
+  .col-one{
+    height: 50px;
+    line-height: 50px;
+    text-align: right;
+
+  }
+  .col-two{
+    height: 400px;
+    line-height: 400px;
+
+    text-align: center;
+    /*border:1px solid #ff3b52;*/
+
+  }
+  .col-three{
+    height: 300px;
+    /*overflow-y: auto;*/
+
+  }
+  .col-four{
+    height: 50px;
+
+  }
+  .bg-purple-dark {
+    background: #99a9bf;
+  }
+  .bg-purple {
+    background: #d3dce6;
+  }
+  .bg-purple-light {
+    background: #e5e9f2;
+  }
+  .grid-content {
+    display: inline-block;
+    border-radius: 4px;
+    min-height: 337.5px;
+    width: 42%;
+    min-width: 600px;
+    margin-top: 1vh;
+    height: auto;
+    position: relative;
+    /*border:1px solid #00ff00;*/
+  }
+/*map*/
+  .demandDialog{
+    width: 100%;
+    height: 100%;
+    /*border:1px solid #ff0000;*/
+    border-radius: 3px;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    /*z-index: 2010;*/
+    background: rgba(0,0,0,0.4);
+    text-align: center;
+    display: block;
+  }
+  .demandDialogInfo{
+    width: 40vw;
+    height: 50vh;
+    /*min-width: 400px;*/
+    min-height: 400px;
+    /*border:1px solid #ff0000;*/
+    border-radius: 3px;
+    position: relative;
+    top: 20vh;
+    left: 24%;
+    background: white;
+    /*z-index: 2001;*/
+  }
+  .demandDialogInfo>ul{
+    width: 40vw;
+    height: 50vh;
+    //min-height: 400px;
+    /*min-width: 400px;*/
+    /*border:1px solid #ff0000;*/
+  }
+  .demandDialogInfo>ul>li:nth-child(1){
+    height: 8vh;
+    min-height: 50px;
+    line-height: 8vh;
+    text-align: right;
+    /*border: 1px solid #00FF00;*/
+    border-bottom: 1px solid #cccccc;
+  }
+  .demandDialogInfo>ul>li:nth-child(1)>ul{
+    width: 40vw;
+
+  }
+  .demandDialogInfo>ul>li:nth-child(1)>ul>li:nth-child(1){
+    width: 35vw;
+    /*border: 1px solid #00FF00;*/
+    float: left;
+    text-align: center;
+  }
+  .demandDialogInfo>ul>li:nth-child(1)>ul>li:nth-child(2){
+    width: 5vw;
+    /*border: 1px solid #00FF00;*/
+    float: left;
+    text-align: center;
+  }
+  .demandDialogInfo>ul>li:nth-child(2){
+    height: 42vh;
+    /*border:1px solid #00FF00;*/
+  }
+  /**/
+  #demandMap{
+    width: 35vw;
+    height: 40vh;
+    /*min-width: 400px;*/
+    min-height: 340px;
+    /*border:2px solid #00FF00;*/
+    position: absolute;
+    /*z-index: 2001;*/
+  }
+  #floor{
+    /*border: 1px solid #ff0000;*/
+    width: 35px;
+    height: 35px;
+
+  }
+  .up{
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    text-align: center;
+    /*border:1px solid red;*/
+    position: absolute;
+    right: 20px;
+    bottom:205px;
+    z-index: 2010;
+  }
+  .down{
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    text-align: center;
+    /*border:1px solid red;*/
+    position: absolute;
+    right: 20px;
+    bottom:135px;
+    z-index: 2010;
+  }
+/*video*/
+  .videoIcon{
+    position: absolute;
+    top: 20px;
+    width: 20px;
+    right: 20px;
+    /*border: 1px solid #ff0000;*/
+    /*z-index: 2011;*/
+  }
+  .video-js{
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+    object-fit: cover;
+    /*border:1px solid #0000ff;*/
+    position: relative;
+    /*z-index: 2009;*/
+    background: white;
+
+  }
+  .grid-content {
+    /*border-radius: 4px;
+    min-height: 36px;
+    height: 40vh;
+    line-height: 40vh;
+    text-align: center;
+    !*border:1px solid #ff0000;*!
+    !*overflow: hidden;*!
+    text-align: left;
+    background: white;*/
+
+  }
+</style>

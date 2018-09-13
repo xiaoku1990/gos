@@ -1,0 +1,293 @@
+<template>
+  <div id="app">
+      <headers ></headers>
+      <div class="appView">
+        <sidebar></sidebar>
+        <router-view>
+
+
+        </router-view>
+
+      </div>
+    <!--提示框-->
+    <el-dialog
+      class="imgSrcDialog"
+      title="查看详情"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="dialog"
+      @close='mapDialog'
+      top="35vh"
+      width="30%"
+    >
+      <div class="map-top">
+
+      </div>
+      <div class="car-info-top">
+        类型:{{carType}}
+      </div>
+      <div class="map-img">
+        <img v-bind:src="carNumberSrc">
+      </div>
+      <div class="car-info-body">
+        <ul>
+          <li>
+            <ul>
+              <li>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;车牌号:{{car_number}}</li>
+              <li>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;楼层:{{carpos_floorName}}</li>
+            </ul>
+          </li>
+          <li>
+            <ul>
+              <li> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;车位号:{{carpos_gid}}</li>
+              <li> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;进场时间:{{ car_enterTime}}</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </el-dialog>
+    <!---->
+    <!--消息弹窗-->
+    <dialog-msg :title="diaglogMsg" :msgType="0" :msgData="diagloMsg" @getAll="parkinMsg"  v-if="dialogVisible">
+    </dialog-msg>
+    <!---->
+    </div>
+    <!---->
+
+  <!---->
+</template>
+
+<script>
+  import sidebar from '@/components/modules/sidebar'  /*header*/
+  import headers from '@/components/header/headers'  /*header*/
+  import dialogMsg from '@/components/modules/dialogMsg'
+export default {
+  name: 'App',
+  data(){
+    return{
+      dialogVisible:false,
+      diaglogMsg:'警告',
+      pushTaggle:false,//推送功能开关;
+      diagloMsg:{},
+      userInfo:'',//登录信息
+      dialog: false,//提示框
+      carNumberSrc:'',//车位图片信息,
+      carType:'',//车位类型
+      car_number:'',//车牌号
+      carpos_floorName:'',//楼层
+      carpos_gid:'',//车位号
+      car_enterTime:''//进场时间
+    }
+  },
+  methods: {
+    parkinMsg(data){
+      this.dialogVisible = data.type;
+      //console.log(data);
+
+    },
+    mapDialog(){
+      this.dialog=false
+    },
+  },
+  mounted() {
+
+
+    let that=this;
+
+    eventbus.$on('onUserLogout',function () {
+      that.dialogVisible=false;
+    });//
+
+    eventbus.$on('tunnelCarNum',function () {
+      console.log('APP');
+      that.dialog=true;
+    });//推送消息的查看车牌的
+
+    //初始化GoEasy对象
+    if(typeof GoEasy !== 'undefined'){
+      that.goEasy = new GoEasy({
+        appkey: 'BC-72fd8a56ab784bb9b8c3325ca09de154',
+        userId:"beefind",
+        username:"beefind",
+        onConnected:function(){
+          //alert("Connect to GoEasy success.");
+        } ,
+        onDisconnected:function(){
+          //alert("Disconnect to GoEasy server.");
+        } ,
+        onConnectFailed:function(error){
+          //alert("Connect to GoEasy failed, error code: "+ error.code+" Error message: "+ error.content);
+        }
+      });
+    };//
+    //订阅channel
+
+    subscribe();
+    function subscribe(){
+      that.goEasy.subscribe({
+        channel: 'beefind',
+        onMessage: function(message){////自动接收推送信
+          //--------
+          that.pushTaggle = localStorage.getItem('messagePush')==='true';
+          that.userInfo = localStorage.getItem('userInfo');
+          console.log(that.userInfo);
+
+          //console.log(message.content);
+          //http://beefindtech.cn:40005/pic/15/f085c188df63_2.jpg(测试图片)
+
+
+
+          var content=JSON.parse(message.content);
+
+              content.car_picUrl='http://192.168.0.100:8421/pic/17/f085c157faf8_1.jpg';//test
+              let carImg=that.$Api+content.car_picUrl.substring(25);
+              console.log(carImg);
+              that.carNumberSrc="";
+              that.carNumberSrc=carImg;
+          content.type="0";//提示类型
+          if(content.car_state=='2'){
+             content.car_message="超时停车!";
+          }else if(content.car_state=='3'){
+             content.car_message="黑名单!";
+          }else if(content.car_state=='4'){
+            content.car_message="违停车辆!";
+          }else if(content.car_state=='5'){
+            content.car_message="特殊车辆!";
+          }else if(content.car_state=='6'){
+            content.car_message="固定车位!";
+          }else{
+            content.car_message="";
+          };//
+
+          content.car_enterTime='2018/6/7/16:00';//test
+          content.carpos_floorName='B1';//test
+
+
+          //that.car_enterTime='2018/6/7/16:00';
+
+          //content.type="0";
+          console.log(content);
+
+
+          let testContent=content;
+          //alert('Meessage received:'+message.content);
+
+          that.carType=testContent.car_message;
+          that.car_number=testContent.car_number;
+          that.carpos_gid=testContent.carpos_gid;
+          that.car_enterTime=content.car_enterTime;
+          that.carpos_floorName=content.carpos_floorName;
+          that.diagloMsg=testContent;
+
+          if(that.userInfo!=null){//是否登录
+            //推送开关
+            //console.log('on');
+            if(that.pushTaggle){
+              that.dialogVisible=true;
+            }else {
+              that.dialogVisible=false;
+            };
+          }else{
+            that.dialogVisible=false;
+          };//
+
+        },
+        onSuccess:function(){
+          //alert("Subscribe the Channel successfully.");
+
+        },
+
+        onFailed: function(error){
+
+          //alert("Subscribe the Channel failed, error code: "+ error.code + " error message: "+ error.content);
+
+        }
+
+      });
+
+    };//
+  },
+  components:{headers,sidebar,dialogMsg}
+}
+</script>
+
+<style lang="scss">
+  #app{
+    /*display: flex;*/
+    flex-flow: column nowrap;
+    place-content: flex-end flex-start;
+    align-items: flex-start;
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    align-items: baseline;
+    align-content: stretch;
+    .appView{
+      display: flex;
+      width: 100%;
+      min-height: 100%;
+    }
+
+  }
+  .imgSrcDialog{
+    /*border: 1px solid #ff0000;*/
+  }
+  .map-top{
+    border-bottom: 1px solid #cccccc;
+    margin-top: -25px;
+    margin-bottom: 0px ;
+  }
+  .map-img{
+    width: 100%;
+    text-align: center;
+    /*border: 1px solid #ff0000;*/
+  }
+  .car-info-top{
+    width: 100%;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-family: "Microsoft YaHei";
+    font-size: 16px;
+    /*border: 1px solid #ff0000;*/
+  }
+  .car-info-body{
+    width: 100%;
+    height: 70x;
+    line-height: 70px;
+    text-align: center;
+    font-family: "Microsoft YaHei";
+    font-size: 16px;
+    margin-top: 5px;
+    /*border: 1px solid #ff0000;*/
+    ul:first-child{
+      width: 100%;
+      height: 70px;
+      line-height: 70px;
+
+      /*border: 1px solid #ff0000;*/
+      li{
+        width: 100%;
+        height: 35px;
+        line-height: 35px;
+        ul{
+          width: 100%;
+          height: 35px;
+          line-height: 35px;
+          li{
+            width: 50%;
+            height: 35px;
+            line-height: 35px;
+            text-align: left;
+            float: left;
+          }
+        }
+      }
+    }
+  }
+  /**/
+  .map-img img{
+    width: 100%;
+    display: inline-block;
+  }
+</style>

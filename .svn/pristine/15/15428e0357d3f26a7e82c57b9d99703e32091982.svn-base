@@ -1,0 +1,857 @@
+<template>
+  <div class="par-state main-padding">
+    <div class="state-one">
+      <div class="state-top">
+        <div class="state-query">
+          <div class="state-from" style="display: flex">
+            <el-form ref="userQuery" :model="userQuery" label-width="80px">
+
+              <el-form-item label="查询时间" class="data-item-left">
+                <el-col :span="11">
+                  <el-date-picker :editable="false" size="small" class="input-round" type="date" placeholder="开始日期"
+                                  v-model="startTime" :value-format="htmlDateFormat" :clearable="false"
+                                  :picker-options="dataPickerOptions1" style="width: 100%;"></el-date-picker>
+                </el-col>
+                <el-col class="line" :span="1" style="text-align: center;">-</el-col>
+                <el-col :span="11">
+                  <el-date-picker :disabled="endTimeDisable" :editable="false" size="small" class="input-round"
+                                  type="date" placeholder="结束日期"
+                                  v-model="endTime" :value-format="htmlDateFormat" :clearable="false"
+                                  :picker-options="dataPickerOptions2" style="width: 100%;"></el-date-picker>
+                </el-col>
+              </el-form-item>
+
+              <el-form-item label="车区" class="data-item-right">
+                <el-col :span="11">
+                  <el-select size="small" v-model="floorSelect" class="input-round" placeholder="选择楼层">
+                    <el-option v-for="(itme, index) in tableFieldList.floorAreas" :label="itme.floor_name"
+                               :value="index"></el-option>
+                  </el-select>
+                </el-col>
+                <el-col class="line" :span="1" style="text-align: center;">-</el-col>
+                <el-col :span="11">
+                  <el-select size="small" v-model="areaSelect" class="input-round" placeholder="选择区域">
+                    <el-option v-for="(itme, index) in tableFieldList.floorAreas[floorSelectedIndex].area_list"
+                               :label="itme.area_name" :value="index"></el-option>
+                  </el-select>
+                </el-col>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" size="small" icon="el-icon-search" round
+                           @click="vehiceQueryClick('userQuery')"></el-button>
+              </el-form-item>
+            </el-form>
+          </div>
+          <!---->
+        </div>
+        <!--表格-->
+        <div class="state-Using">
+          <line-chart
+            :dataArray="carposRatioData"
+            xField="time"
+            yField="value"
+            xName="天"
+            yName="利用率"
+            :xFormatter="formatChartDate"
+            yFormatter="{value}%"
+            valueMax="100"
+          ></line-chart>
+        </div>
+      </div>
+      <div class="state-bottom">
+
+        <div class="bark-one">
+          <p class="back-title">
+            <span><i></i>报表</span>
+            <el-button round icon="el-icon-download" size="small" type="danger" @click="exports">批量导出</el-button>
+          </p>
+          <!--暂时不用height="100%"-->
+          <el-table
+            :data="tableData"
+            style="width: 100%;">
+            <el-table-column
+              label="楼层"
+              prop="floor_name"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              label="区域"
+              prop="area_name"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              label="入位车流"
+              prop="inCarpos"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              label="出位车流"
+              prop="outCarpos"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              label="车位数"
+              prop="totalCarpos"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              :formatter="formatTableDate"
+              label="统计时间"
+              prop="time"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              :formatter="formatRatio"
+              label="车位利用率"
+              prop="value"
+              empty-text="暂无数据"
+              align="center"
+              width="">
+            </el-table-column>
+          </el-table>
+          <div class="block">
+            <el-pagination
+              @current-change="handleCurrentChange"
+              :current-page.sync="tableDataCurrentPage"
+              :page-size="tablePageSize"
+              :total="tableDataCount"
+              layout="prev, pager, next, slot, jumper">
+              <span class="el-pagination__total page-count-padding">共{{ tableDataTotalPage }}页</span>
+            </el-pagination>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="state-tor">
+      <div class="state-top" :style="{width:theListOf?'inherit':'96%'}">
+        <div class="state-round">{{floorName}}
+          <div class="state-box"></div>
+        </div>
+        <div class="state-bottom" v-if="!theListOf">
+          <ul>
+            <li v-for="item in stateData" :style="{border:'1px solid #'+item.back+''}">
+              <span :style="{background:'#'+item.back+''}"></span><i
+              :style="{borderRight:'1px solid #'+item.back+''}"></i>{{item.min}}-{{item.max}}
+            </li>
+          </ul>
+        </div>
+        <button class="map-button" @click="nextFloor()">
+          <i :class="{'el-icon-arrow-left':!theListOf,'el-icon-arrow-right':theListOf}"></i>
+        </button>
+      </div>
+      <div class="map-bottm">
+        <!---->
+        <div id="useMap"   ref="myMap">
+
+
+        </div>
+        <!---->
+        <img src="../../../static/img/up.png" alt="up" @click="upFloor()" class="up">
+        <div id="floor">
+          <ul id="floorUl" ref="floorUl">
+
+          </ul>
+        </div>
+        <img src="../../../static/img/down.png" alt="down" @click="downFloor()" class="down">
+        <!--<button class="next-layer" @click="openDialog">下一层</button>-->
+      </div>
+    </div>
+    <!--地图弹窗-->
+    <el-dialog
+      title="查看图片"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="mapVehicle"
+      @close='mapDialog'
+      top="35vh"
+      width="30%"
+    >
+      <div class="map-img">
+        <img src="~@/assets/images/logo.jpg">
+      </div>
+
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+  import {formatDate} from '../../common/js/date.js'
+  import {json2Xlsx} from '../../common/js/json2Xlsx.js'
+  import {common} from '../../common/js/common.js'
+  import lineChart from '@/components/modules/charts/lineChart'
+  import { module } from "../../../static/ol/findMapOOB";
+  /*header*/
+  export default {
+    name: "vehicle-using",
+    components: {lineChart},
+    data() {
+      return {
+        stateMsg: true,
+        dialogVisible: false,
+        mapVehicle: false,
+        useMap:'',//利用率地图
+        diaglogMsg: '警告',
+        tableShow: true,
+        //当前楼层名称
+        floorName: "",
+        //占用数，空余数，超时停车，黑名单，违规停车，特殊车辆显示数据
+        stateData: [],
+        //表格
+        chart: null,
+        //用户请求数据
+        userQuery: {
+          build_id: this.$BuildId,
+          floor_id: 0,
+          area_id: 0,
+          start_time: 0,
+          end_time: 0,
+        },
+        dataPickerOptions1: {
+          disabledDate: (time) => {
+            let timeInvalid = false;
+            if (this.userQuery.end_time) {
+              timeInvalid = time.getTime() > new Date(this.userQuery.end_time);
+            }
+            return (timeInvalid || (time.getTime() > new Date));
+          }
+        },
+        dataPickerOptions2: {
+          disabledDate: (time) => {
+            let timeInvalid = false;
+            if (this.userQuery.start_time) {
+              timeInvalid = time.getTime() < new Date(this.userQuery.start_time);
+            }
+            return (timeInvalid || (time.getTime() > new Date));
+          }
+        },
+        floorAreasQuery: {
+          build_id: this.$BuildId,
+        },
+        startTime: null,
+        endTime: null,
+        endTimeDisable: true,
+        floorSelectedIndex: 0,
+        areaSelectedIndex: 0,
+        carposRatioData: [{}], //待加载
+        chartTimeLastItemYear: -1, //用来缓存线表绘制时上一个数据的年份，用于年份不同时的补充显示
+        tableData: [],
+        tableDataCount: 0,
+        tableDataCurrentPage: 0,
+        tableDataTotalPage: 0,
+        tablePageSize: common().config.smallPageItemSize,
+        theListOf: true,
+        tableExportName: common().config.carposRatioTableExportName,
+        tableDateFormat: common().config.tableDateFormat,
+        tableExportDateFormat: common().config.tableExportDateFormat,
+        htmlDateFormat: common().config.htmlDateFormat,
+        tableFieldList: {
+          floorAreas: [{floor_name: '不限', area_list: [{area_name: '不限'}]}]  //先初始化一个默认值，再加载数据覆盖
+        },
+        tableFieldArray: {
+          sheetHeaderTitles: common().list.carposRatioSheetHeaderTitles,
+          sheetHeaderFields: common().list.carposRatioSheetHeaderFields
+        },
+        requestUrl: {
+          tableDataUrl: common().url.carposRatioChart,
+          floorAreaListUrl: common().url.floorAreaList
+        }
+      }
+    },
+    created() {
+      let today = new Date;
+      today.setHours(0);
+      today.setMinutes(0);
+      today.setSeconds(0);
+      today.setMilliseconds(0);
+      this.endTime = today;
+      this.startTime = new Date(today.getTime() - 1000 * 3600 * 24 * 7);
+      this.initParkinfo();
+      this.getFloorAreaList();
+    },
+    mounted() {
+      // this.queryData();  //不能在这里调用，一定要等获取到floorAreaList
+      //实例化地图
+
+      //
+      var using_map= new module.BeefindMap({
+        "target": this.$refs.myMap,
+        "floorUl":this.$refs.floorUl,
+        "mapType":'useState',
+        'urlLocal':this.$Api,
+        "timeDate":this.userQuery,
+        "city_id":"F0021",//城市ID
+        "build_id":this.$BuildId,//項目ID
+        "floor_id" :"",//樓層ID
+        "floorBarVisible":true,//楼层控件
+        "carLayerVisible":true,//车位层是否显示(默认显示)
+        "carPortLayerVisible":true,//车位号层是否显示(默认显示)
+        "interLayerVisible":true,//兴趣点层是否显示(默认显示)
+        "deviceLayerVisible":false//设备层是否显示(默认不显示)
+      });//
+
+      this.useMap=using_map;
+      this.floorName=this.useMap.floor;
+      this.useMap.setTime(this.userQuery);
+      var mapUseThis=this;
+      //
+     mapUseThis.useMap.on('singleclick',function (event) {
+        //var clickMapUse = localStorage.getItem('clickMap');
+        //
+
+        var feature = mapUseThis.useMap.forEachFeatureAtPixel(event.pixel, function (feature) {
+          return feature;
+        });
+
+        if (feature) {
+          //console.log(clickMapUse);
+          //console.log(feature);
+        };//
+      });
+      //var clickMapUse = localStorage.getItem('clickMap');
+
+
+     // localStorage.setItem('clickMap','1');
+
+    },
+    beforeDestroy(){
+      const mapThis=this;
+      mapThis.useMap.removeEventListener('singleclick');
+      mapThis.useMap="";
+    },
+    watch: {
+      startTime(val) {
+        this.userQuery.start_time = (val ? formatDate(new Date(val), this.tableDateFormat) : 0);
+        this.endTimeDisable = !val;
+        if (!val) {
+          this.endTime = null;
+          this.userQuery.end_time = 0;
+        }
+      },
+      endTime(val) {
+        this.userQuery.end_time = (val ? formatDate(new Date(val), this.tableDateFormat) : 0);
+      }
+    },
+    computed: {
+      floorSelect: {
+        get() {
+          return this.floorSelectedIndex;
+        },
+        set(val) {
+          if (val != this.floorSelectedIndex) {
+            this.userQuery.floor_id = this.tableFieldList.floorAreas[val].floor_id;
+            this.floorSelectedIndex = val;
+
+            //联动刷新
+            this.areaSelectedIndex = 0;
+            this.userQuery.area_id = this.tableFieldList.floorAreas[val].area_list[0].area_id;
+          }
+        }
+      },
+      areaSelect: {
+        get() {
+          return this.areaSelectedIndex;
+        },
+        set(val) {
+          if (val != this.areaSelectedIndex) {
+            this.userQuery.area_id = this.tableFieldList.floorAreas[this.floorSelectedIndex].area_list[val].area_id;
+            this.areaSelectedIndex = val;
+          }
+        }
+      }
+    },
+    methods: {
+      //地图弹窗
+      mapDialog() {
+        this.mapVehicle = false
+      },
+      //下一层
+      openDialog() {
+        console.log('我是下一层')
+      },
+      //初始化查询出来的占用数，空余数，超时停车，黑名单，违规停车，特殊车辆显示数据
+      initParkinfo() {
+        this.floorName = "B1"; //改变楼层
+        this.stateData = [
+          {
+            min: '0%',
+            max: '20%',
+            numberSize: 84,
+            back: '9ade31'
+          },
+          {
+            min: '21%',
+            max: '40%',
+            numberSize: 84,
+            back: 'fbdc44'
+          },
+          {
+            min: '41%',
+            max: '60%',
+            numberSize: 84,
+            back: 'f8aa2e'
+          },
+          {
+            min: '61%',
+            max: '80%',
+            back: 'ff8350'
+          },
+          {
+            min: '81%',
+            max: '100%',
+            back: 'fd435a'
+          },
+        ]
+      },
+      nextFloor() {
+        this.theListOf = !this.theListOf;
+        console.log(this.theListOf)
+      },
+      //下一层
+      upFloor(){
+        var self=this;
+        module.upFloor(clickSuccess);
+        function clickSuccess(evevt){
+          self.floorName=evevt;
+        };
+      },
+      downFloor(){
+        var self=this;
+        module.downFloor(clickSuccess);
+        function clickSuccess(event){
+          self.floorName=event;
+        };
+      },
+      formatRatio(row, column, cellValue) {
+        return cellValue + '%';
+      },
+      formatChartDate(value, index) { // 格式化成月/日，只在第一个刻度显示年份
+        let date = new Date(value);
+        let texts = [(date.getMonth() + 1), date.getDate()];
+        let year = date.getFullYear();
+        if (index === 0) {
+          texts.unshift(year);
+          this.chartTimeLastItemYear = year;
+        } else if(this.chartTimeLastItemYear != year) {
+          texts.unshift(year)
+          this.chartTimeLastItemYear = year;
+        }
+        return texts.join('/');
+      },
+      formatTableDate(row, column, cellValue) {
+        let data = new Date(cellValue);
+        return formatDate(data, 'yyyy-MM-dd');
+      },
+      //查询
+      vehiceQueryClick(formName) {
+
+        this.$refs[formName].validate((valid) => {
+          if (valid) {
+
+            this.queryData();
+            //console.log(this.useMap);
+            this.useMap.refreshUseCar();
+
+          } else {
+            return false;
+          }
+        });//
+
+      },
+      exports() {
+        let jsonResult = this.carposRatioData;
+        let dataExport = [];
+        const xlsxName = this.tableExportName + formatDate(new Date, this.tableExportDateFormat);
+        for (let i in jsonResult) {
+          dataExport[i] = {
+            floor_name: jsonResult[i].floor_name,
+            area_name: jsonResult[i].area_name,
+            inCarpos: jsonResult[i].inCarpos,
+            outCarpos: jsonResult[i].outCarpos,
+            totalCarpos: jsonResult[i].totalCarpos,
+            time: jsonResult[i].time,
+            value: jsonResult[i].value + '%'
+          };
+        }
+        console.log(this.tableFieldArray);
+        json2Xlsx(this, this.tableFieldArray.sheetHeaderTitles, this.tableFieldArray.sheetHeaderFields, dataExport, xlsxName);
+      },
+      getFloorAreaList() {
+        let formData = new FormData();
+        for (let i in this.floorAreasQuery) {
+          formData.append(i, this.floorAreasQuery[i]);
+        }
+        this.$http.post(this.$Api + this.requestUrl.floorAreaListUrl, formData, {dataType: 'json'})
+          .then(data => {
+            if (data.status == 200) {
+              let jsonData = data.data;
+              if ((typeof(jsonData.result) !== 'undefined') && (jsonData.result == 1)) {
+                let floorAreaList = common().util.floorAreaListAppendNull(jsonData.floor_list);
+                this.tableFieldList.floorAreas = floorAreaList;
+                this.userQuery.floor_id = floorAreaList[0].floor_id;
+                this.userQuery.area_id = floorAreaList[0].area_list[0].area_id;
+                this.queryData();
+              } else {
+                alert('获取floorAreaList失败1');
+              }
+            }
+            else {
+              alert('获取floorAreaList失败2');
+            }
+          })
+          .catch(function (error) {
+            alert('获取floorAreaList失败3:' + error);
+            console.log(error);
+          });
+      },
+      setTableData(page, total) {
+        let start = (page - 1) * this.tablePageSize;
+        let end = page * this.tablePageSize;
+        if (end > total) {
+          end = total;
+        }
+        this.tableData = this.carposRatioData.slice(start, end);
+      },
+      queryData() {console.log(this.userQuery);
+        let formData = new FormData();
+        for (let i in this.userQuery) {
+          formData.append(i, this.userQuery[i]);
+        }
+        this.carposRatioData = [{}];
+        this.tableData = [];
+        console.log(`查询字段: ${ JSON.stringify(this.userQuery) }`);
+        this.$http.post(this.$Api + this.requestUrl.tableDataUrl, formData, {dataType: 'json'})
+          .then(data => {
+            if (data.status == 200) {
+              let jsonData = data.data;
+              if ((typeof(jsonData.result) !== 'undefined') && (jsonData.result == 1)) {
+                console.log(`结果返回: ${ JSON.stringify(jsonData) }`);
+                if(jsonData.carposRatio_list.length) {
+                  this.carposRatioData = jsonData.carposRatio_list;
+                  this.tableDataCount = this.carposRatioData.length;
+                } else {
+                  this.tableDataCount = 0;
+                }
+                this.tableDataTotalPage = Math.floor(this.tableDataCount / this.tablePageSize) + ((this.tableDataCount % this.tablePageSize) != 0);
+                this.setTableData(this.tableDataCurrentPage, this.tableDataCount);
+              } else {
+                alert('获取carposRatioData失败1');
+              }
+            }
+            else {
+              alert('获取carposRatioData失败2');
+            }
+          })
+          .catch(function (error) {
+            alert('获取carposRatioData失败3:' + error);
+            console.log(error);
+          });
+      },
+      //分页
+      handleCurrentChange(val) {
+        console.log(`当前页: ${val}`);
+        this.setTableData(val);
+      }
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  .par-state {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    .state-one {
+      order: 5;
+      flex: 5 0 auto;
+      width: 60%;
+      margin-right: 10px;
+      display: flex;
+      flex-direction: column;
+      .state-top {
+        /*min-height: calc(50% - 10px);*/
+        flex: 6 0 auto;
+        display: flex;
+        flex-direction: column; //上下
+        margin-bottom: 10px;
+        .state-query {
+          display: flex;
+          .state-from {
+            display: flex;
+            height: 60px;
+            padding: 10px 5px 10px 0px;
+            float: left;
+            background: #fff;
+            margin-bottom: 8px;
+            border-radius: 3px;
+          }
+          .data-item-left {
+            float: left;
+            width: 50%;
+          }
+          .data-item-right {
+            float: left;
+            width: 40%;
+          }
+        }
+        .state-Using {
+          flex: 9 0 auto;
+          border-radius: 3px;
+          background: #fff;
+          position: relative;
+          -webkit-box-flex: 5;
+          -ms-flex: 5 0 auto;
+          display: flex;
+          position: relative;
+          flex-direction: column;
+        }
+      }
+      .state-bottom {
+        flex: 5 0 auto;
+        overflow-y: auto;
+        display: flex;
+        position: relative;
+        flex-direction: column; //上下
+        .back-top {
+          padding: 10px 5px 10px 0px;
+          float: left;
+          line-height: 30px;
+          height: 52px;
+          border-radius: 3px;
+          span {
+            float: left;
+          }
+          button {
+            float: right;
+          }
+        }
+        .back-title {
+          width: 100%;
+          float: left;
+          height: 32px;
+          line-height: 32px;
+          i {
+            display: inline-block;
+            height: 18px;
+            float: left;
+            background: #7362e4;
+            width: 3px;
+            margin-right: 6px;
+            position: relative;
+            top: 6px;
+          }
+          span {
+            float: left;
+          }
+          button {
+            float: right;
+          }
+        }
+        .block {
+          text-align: center;
+          margin: 20px 0px;
+        }
+        .back-bottom {
+          background: #fff;
+          flex: 9 0 auto;
+          border-radius: 3px;
+          background: #fff;
+        }
+        //新
+        .bark-one {
+          position: absolute;
+          height: 100%;
+          width: 100%;
+
+        }
+      }
+    }
+    .state-tor {
+      order: 5;
+      border-radius: 3px;
+      background: #fff;
+      flex: 5 0 auto;
+      width: 40%;
+      text-align: center;
+      position: relative;
+      .map-bottm {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        /*border:1px solid #ff3b52;*/
+      }
+      .state-top {
+        flex: 5 0 auto;
+        align-items: center;
+        display: flex;
+        align-self: center;
+        flex-direction: row;
+        position: absolute;
+        margin-right: 4%;
+        z-index: 1;
+        box-shadow: 2px 2px 5px #ccc;
+        //border: 1px solid #ff3b52;
+        background: white;
+        .state-round {
+          text-align: center;
+          line-height: 80px;
+          color: #fff;
+          font-size: 36px;
+          background: linear-gradient(180deg, #fdada2 0px, #ff999d 100%) center center / cover;
+          border-radius: 50%;
+          width: 80px;
+          height: 80px;
+          margin: 20px 30px;
+        }
+        .state-box {
+          height: 9px;
+          border-radius: 10px;
+          width: 77px;
+          margin: 0 auto;
+          -webkit-box-shadow: 0px 10px 10px #ffc4c8;
+          box-shadow: 0px 17px 19px #ffc4c8;
+          position: relative;
+          top: -15px;
+        }
+      }
+      .state-bottom {
+        flex: 3 0 auto;
+        ul {
+          transition: whith 0.4s;
+          width: 100%;
+          li {
+            margin: 7px 10% 7px 0%;
+            border-radius: 3px;
+            position: relative;
+            border-left: 0px !important;
+            width: 23%;
+            float: left;
+            padding: 5px 0px;
+            span {
+              border-radius: 50%;
+              display: inline-block;
+              height: 18px;
+              width: 18px;
+              border-radius: 50%;
+              display: inline-block;
+              position: absolute;
+              top: -1px;
+              left: -7px;
+              z-index: 2;
+            }
+            i {
+              display: inline-block;
+              width: 13px;
+              height: 22px;
+              position: absolute;
+              z-index: 1;
+              left: -2px;
+              top: 10px;
+              background: #fff;
+            }
+          }
+        }
+      }
+      .map-button {
+        position: absolute;
+        top: 45%;
+        right: 0px;
+        height: 24px;
+        width: 24px;
+        border-radius: 50%;
+        -webkit-transform: translate(-58%, -36%);
+        transform: translate(47%, -12%);
+        color: #745fea;
+        background: #ecf0f3;
+        -webkit-transition: ease-in-out 0.4s;
+        transition: ease-in-out 0.4s;
+        padding: 0px;
+        line-height: 23px;
+        border: 2px solid #fcfcfc;
+        box-shadow: 0px 0px 5px #aeaeae;
+        &:hover {
+          background: #ecf0f3;
+          box-shadow: 0px 0px 5px #ecf0f3;
+        }
+      }
+    }
+  }
+
+  .map-img {
+    img {
+      width: 100%;
+    }
+  }
+
+  .next-layer {
+    position: absolute;
+    top: 50%;
+    right: 0px;
+    height: 58px;
+    width: 58px;
+    border-radius: 50%;
+    transform: translate(-58%, -36%);
+    color: #745fea;
+    background: #ded8fe;
+    border: 1px solid #745fea;
+    transition: ease-in-out 0.4s;
+    &:hover {
+      background: #745fea;
+      color: #fff;
+      box-shadow: 0px 0px 5px #745fea;
+    }
+  }
+  /*useMap*/
+  #useMap{
+    width: 100%;
+    height: 100%;
+    /*min-width: 400px;*/
+    min-height: 340px;
+    /*border:2px solid #00FF00;*/
+    position: relative;
+    /*z-index: 2001;*/
+  }
+  #floor{
+    /*border: 1px solid #ff0000;*/
+    width: 35px;
+    height: 35px;
+
+  }
+  .up{
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    text-align: center;
+    /*border:1px solid red;*/
+    position: absolute;
+    right: 20px;
+    bottom:205px;
+    z-index: 2010;
+  }
+  .down{
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    text-align: center;
+    /*border:1px solid red;*/
+    position: absolute;
+    right: 20px;
+    bottom:135px;
+    z-index: 2010;
+  }
+</style>

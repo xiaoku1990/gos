@@ -1,0 +1,38 @@
+//.el-dialog__header {
+//  padding: 20px 20px 10px;
+//  border-bottom: 1px solid #ddd;
+//  margin: 0px 20px;
+//}
+ .has-gutter tr{
+  background-color: #e2e6e9;
+   th{
+     background-color: #e2e6e9;
+   }
+}
+.el-table__header{
+  background-color: #e2e6e9;
+}
+.el-table::before{
+  height: 0px !important;
+}
+.el-button--info{
+  background: #ecf0f1;
+  border: none;
+  color: #666;
+  &:hover{
+    background: #ddd;
+  }
+}
+.el-button--primary{
+  background: #7360ed;
+  border: none;
+  &:hover{
+    background: #6b5ad8;
+  }
+}
+.el-button{
+  border-radius: 25px;
+}
+.el-button--text{
+  color: #7360ed;
+}

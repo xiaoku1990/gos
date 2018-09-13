@@ -1,0 +1,457 @@
+<template>
+  <div>
+    <p class="black-nav">
+      车牌号  <el-input
+      placeholder="请输入内容"
+      v-model="carNumSearch"
+      size="small"
+      clearable  style="width: 200px;margin-right: 20px;" class="input-round">
+    </el-input>
+      <el-button type="primary" size="small" round icon="el-icon-search"></el-button>
+    </p>
+    <div class="main-padding par-state">
+     <div class="bark-row">
+       <div class="bark-one">
+         <p class="black-title">
+           <span><i></i>白名单</span>
+           <el-button round icon="el-icon-plus" size="small" @click="newblackWhiteDialog('black')">新增记录</el-button>
+           <el-button round icon="el-icon-download" size="small" type="danger">批量导出</el-button>
+         </p>
+         <el-table
+           :data="whiteTableData"
+           height="100%"
+           style="width: 100%;">
+           <!--<el-table-column-->
+             <!--type="selection"-->
+             <!--width="30">-->
+           <!--</el-table-column>-->
+           <!--下拉-->
+           <el-table-column
+             label="编号"
+             prop="car_id"
+             align="center"
+             width="">
+           </el-table-column>
+           <el-table-column
+             prop="car_number"
+             empty-text="暂无数据"
+             label="车牌号"
+             align="center"
+             width="">
+           </el-table-column>
+           <el-table-column
+             align="center"
+             label="操作"
+             width="180px">
+             <template slot-scope="scope">
+               <el-button size="mini" round  @click="handleClick(scope.row,$event)" ><i class="black-i-bulr"></i>编辑</el-button>
+               <el-button  size="mini" round @click="blackDelete(scope.row,$event)" type="info"><i class="black-i-red"></i>删除</el-button>
+             </template>
+           </el-table-column>
+         </el-table>
+         <div class="block">
+           <el-pagination
+             @current-change="whiteTablePageChange"
+             :current-page.sync="whiteTableFormData.page"
+             :page-count="whiteTablePageTotal"
+             layout="prev, pager, next, slot, jumper">
+             <span class="el-pagination__total page-count-padding">共{{whiteTablePageTotal}}页</span>
+           </el-pagination>
+         </div>
+       </div>
+       <div class="bark-one">
+         <p class="black-title">
+           <span><i></i>黑名单</span>
+           <el-button round icon="el-icon-plus" size="small" @click="newblackWhiteDialog('white')">新增记录</el-button>
+           <el-button round icon="el-icon-download" size="small" type="danger">批量导出</el-button>
+         </p>
+         <el-table
+           :data="blackTableData"
+           height="100%"
+           style="width: 100%;">
+           <!--<el-table-column-->
+             <!--type="selection"-->
+             <!--width="30">-->
+           <!--</el-table-column>-->
+           <!--下拉-->
+           <el-table-column
+             label="编号"
+             prop="car_id"
+             align="center"
+             width="">
+           </el-table-column>
+           <el-table-column
+             prop="car_number"
+             empty-text="暂无数据"
+             label="车牌号"
+             align="center"
+             width="">
+           </el-table-column>
+           <el-table-column
+             align="center"
+             label="操作"
+             width="180px">
+             <template slot-scope="scope">
+               <el-button size="mini" round  @click="handleClick(scope.row,$event)" ><i class="black-i-bulr"></i>编辑</el-button>
+               <el-button  size="mini" round @click="blackDelete(scope.row,$event)" type="info"><i class="black-i-red"></i>删除</el-button>
+             </template>
+           </el-table-column>
+         </el-table>
+         <div class="block">
+           <el-pagination
+             @current-change="blackTablePageChange"
+             :current-page.sync="blackTableFormData.page"
+             :page-count="blackTablePageTotal"
+             layout="prev, pager, next, slot, jumper">
+             <span class="el-pagination__total page-count-padding">共{{blackTablePageTotal}}页</span>
+           </el-pagination>
+         </div>
+       </div>
+     </div>
+    </div>
+
+    <!-- 新增弹窗 -->
+    <el-dialog
+      :title="newDialogTitle"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="newblackWhiteDialogVisiable"
+      width="30%"
+      top="35vh">
+      <p class="new-dialog-info">输入车牌：</p>
+      <el-input v-model="newFormData.car_number" :placeholder="newDialogInfo"></el-input>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="newblackWhiteDialogVisiable = false" type="text">取 消</el-button>
+        <el-button :loading="newLoading" type="primary" size="small" round @click="newblackWhiteClick">确 定</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- 查看弹框 -->
+    <!--<el-dialog-->
+      <!--title="提示"-->
+      <!--:append-to-body='true' :lock-scroll="true" :modal="true"-->
+      <!--:close-on-click-modal="false"-->
+      <!--:visible.sync="centerDialogVisible"-->
+      <!--width="30%"-->
+    <!--&gt;-->
+      <!--<el-form ref="form" :model="form" label-width="80px">-->
+
+        <!--<el-col :span="24">-->
+          <!--<el-form-item label="编号">-->
+            <!--<el-input v-model="form.id"></el-input>-->
+          <!--</el-form-item>-->
+        <!--</el-col>-->
+
+        <!--<el-col :span="24"><el-form-item label="车牌号">-->
+          <!--<el-input v-model="form.name"></el-input>-->
+        <!--</el-form-item>-->
+        <!--</el-col>-->
+      <!--</el-form>-->
+      <!--<span slot="footer" class="dialog-footer">-->
+      <!--<el-button right @click="centerDialogVisible = false" type="text">取 消</el-button>-->
+      <!--<el-button type="primary" :loading="loading" @click="onSubmit(form)">确 定</el-button>-->
+      <!--</span>-->
+    <!--</el-dialog>-->
+
+  </div>
+
+</template>
+
+<script>
+  export default {
+    name: "hoursers",
+    data(){
+      return{
+        userId: 0,
+        carNumSearch: '',
+        //白名单表
+        whiteTableData: [],
+        whiteTablePageTotal: 1,
+        whiteTableFormData: {
+          user_id: 0,
+          build_id: this.$BuildId,
+          list_type: 'white',
+          page: 1
+        },
+        //黑名单表
+        blackTableData: [],
+        blackTablePageTotal: 1,
+        blackTableFormData: {
+          user_id: 0,
+          build_id: this.$BuildId,
+          list_type: 'black',
+          page: 1
+        },
+        //新增
+        newDialogTitle: '',
+        newDialogInfo: '',
+        newblackWhiteDialogVisiable: false,
+        newFormData: {
+          user_id: 0,
+          build_id: this.$BuildId,
+          list_type: '',
+          car_number: ''
+        },
+        newLoading: false,
+
+
+        //记得加loading
+
+        centerDialogVisible:false,
+      }
+    },
+    methods: {
+      //表格刷新
+      whiteTableUpdate() {
+        this.whiteTableFormData.user_id = this.userId;
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/getBlackWhiteList`,
+          params: this.whiteTableFormData
+        }).then(response => {
+          this.whiteTableData = response.data.white_list;
+          this.whiteTablePageTotal = response.data.total_page;
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      blackTableUpdate() {
+        this.blackTableFormData.user_id = this.userId;
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/getBlackWhiteList`,
+          params: this.blackTableFormData
+        }).then(response => {
+          this.blackTableData = response.data.black_list;
+          this.blackTablePageTotal = response.data.total_page;
+        }).catch((error) => {
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      whiteTablePageChange(val) {
+        // console.log(`当前页: ${val}`);
+        this.whiteTableUpdate();
+      },
+      blackTablePageChange(val) {
+        // console.log(`当前页: ${val}`);
+        this.blackTableUpdate();
+      },
+      //新增
+      newblackWhiteDialog(item){
+        if(item == 'black') {//白
+          this.newDialogTitle ='添加白名单';
+          this.newDialogInfo = '白名单车辆查询机隐私保护不可查询到'
+        } else if(item == 'white') {//黑
+          this.newDialogTitle ='添加黑名单';
+          this.newDialogInfo = '黑名单车辆进入车位会报警提示'
+        }
+        this.newFormData.list_type = item;
+        this.newFormData.car_number = '';
+        this.newblackWhiteDialogVisiable = true;
+      },
+      newblackWhiteClick() {
+        if(!this.newFormData.car_number) {
+          this.$message({
+            title: '注意',
+            message: '车配不能为空',
+            duration: 2000,
+            type: 'warning'
+          });
+          return;
+        }
+        this.newFormData.user_id = this.userId;
+        this.newLoading = true;
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/addCarToBlackWhiteList`,
+          params: this.newFormData
+        }).then(response => {
+          this.newLoading = false;
+          if(response.data.result === 1) {
+            this.$notify({
+              title: '成功',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'success'
+            });
+            this.newblackWhiteDialogVisiable = false;
+            if(this.newFormData.list_type == 'black') {//白
+              this.whiteTableUpdate();
+            } else if(item == 'white') {//黑
+              this.blackTableUpdate();
+            }
+          } else{
+            this.$notify({
+              title: '添加失败',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'error'
+            });
+          }
+        }).catch((error) => {
+          this.newLoading = false;
+          this.$notify({
+            title: 'ERROR',
+            message: `${error}`,
+            duration: 2000,
+            type: 'error'
+          });
+        });
+      },
+      //查看
+      handleClick(row,event) {
+        event.cancelBubble = true;
+        this.centerDialogVisible=true;
+        this.form = { //直接赋值可能是因为elenmet 方法把row进行数据绑定了
+          date: row.date,
+          name: row.name,
+          province:row.province,
+          city: row.city,
+          address:row.address,
+          zip:row.zip,
+        };
+      },
+      //编辑确定
+      onSubmit(form) {//导致row会全局引用
+        this.loading=true;
+        setTimeout(()=>{
+          this.loading=false;
+          this.centerDialogVisible=false;
+          this.$notify({
+            title: '成功',
+            message: '已经完成修改',
+            duration:1000,
+            type: 'success'
+          });
+        },500)
+        // console.log(form);
+      },
+
+      //编辑
+      editorClick(row,event) {
+        event.cancelBubble = true;
+      },
+      blackDelete(item){
+        // console.log(item)
+        if(item){
+          this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }).then(() => {
+            this.$message({
+              type: 'success',
+              message: '删除成功!'
+            });
+          }).catch(() => {
+            // console.log('取消删除');
+          });
+        }
+      }
+
+    },
+    mounted() {
+      const _this = this;
+      if(localStorage.getItem('userInfo')) {
+        _this.userId = JSON.parse(localStorage.getItem('userInfo')).user_id;
+      } else {
+        console.log('[black-white]local storage 里面找不到登录信息userInfo');
+      }
+      eventbus.$on('onUserLogin', function(userInfo) {
+        // console.log('[black-white]on user login');
+        if(userInfo) {
+          _this.userId = userInfo.user_id;
+        } else {
+          _this.userId = 0;
+        }
+        // console.log(`[black-white]user name: ${_this.adminName}`);
+      });
+      this.whiteTableUpdate();
+      this.blackTableUpdate();
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  @import "../../style/variables.scss";
+  //弹性弹性
+  .bark-row{
+    display: flex;
+    height: calc(100% - 120px);
+    /*width: calc(100% - 226px);*/
+    width: 100%;
+    flex-direction: row;
+    .bark-one{
+      display: flex;
+      flex: 5 0 auto;
+      margin: 0px 1%;
+      flex-direction: column;
+      width: 48%;
+      .black-title{
+        float: left;
+        text-align: right;
+        line-height: 30px;
+        width: 100%;
+        flex: 1 0 auto;
+        span{
+          float: left;
+          i{
+            display: inline-block;
+            height: 18px;
+            float: left;
+            background: #7362e4;
+            width: 3px;
+            margin-right: 6px;
+            position: relative;
+            top: 6px;
+          }
+        }
+      }
+      .el-table{
+        flex: 6 0 auto;
+      }
+      .block{
+        flex: 1 0 auto;
+        text-align: center;
+        margin: 20px 0px;
+      }
+    }
+  }
+  .black-nav {
+    background: #fff;
+    padding: 12px 20px;
+    margin: 0px;
+    margin-bottom: 20px;
+  }
+  .black-i-bulr{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    border-radius: 25px;
+    margin-right:6px;
+    background: $green;
+  }
+  .black-i-red{
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    margin-right:6px;
+    border-radius: 25px;
+    background: $red;
+  }
+  .new-dialog-info {
+    text-indent: .5em;
+    font-size: 15px;
+    line-height: 30px;
+  }
+</style>

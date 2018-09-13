@@ -1,0 +1,549 @@
+<template>
+  <div id="app">
+      <headers ></headers>
+      <div class="appView">
+        <sidebar></sidebar>
+
+
+
+          <router-view>
+
+
+          </router-view>
+
+
+      </div>
+    <!--消息推送列表-->
+    <el-dialog
+      class="tunnelListDialog"
+      title="推送列表"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="dialogList"
+      @close='mapDialog'
+      top="35vh"
+      width="60%"
+    >
+      <div class="map-top">
+
+      </div>
+      <div>
+        <el-table
+          :data="tunnelListDate"
+          style="width: 100%">
+          <el-table-column
+            style="width: 20%;"
+            label="顺序"
+            type="index"
+            :index="indexMethod">
+          </el-table-column>
+
+          <el-table-column
+            label="车牌号"
+            style="width: 25%;"
+            >
+            <template slot-scope="scope">
+              <span style="margin-left: 10px">{{ scope.row.car_number }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="类型"
+            style="width: 25%;"
+          >
+            <template slot-scope="scope">
+              <span style="margin-left: 10px">{{ scope.row.car_message }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="入场时间"
+            style="width: 30%;"
+          >
+            <template slot-scope="scope">
+              <i class="el-icon-time"></i>
+              <span style="margin-left: 10px">{{ scope.row.car_enterTime }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="查看车牌">
+            <template slot-scope="scope">
+              <el-button
+                type="primary"
+                size="mini"
+                @click="lookCarNumber(scope.$index, scope.row)">查看车牌</el-button>
+            </template>
+          </el-table-column>
+
+        </el-table>
+        <!--分页效果-->
+        <div class="block" style="margin-top: 15px;">
+          <el-pagination
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            :current-page="1"
+            :page-sizes="[1, 2, 3, 4, ]"
+            :page-size="1"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total=tunnelTotal>
+          </el-pagination>
+        </div>
+        <!---->
+      </div>
+    </el-dialog>
+    <!--查看车牌提示框-->
+    <el-dialog
+      class="imgSrcDialog"
+      title="查看详情"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="dialog"
+      @close='mapDialog'
+      top="35vh"
+      width="35%"
+    >
+      <div class="map-top">
+
+      </div>
+      <div class="car-info-top">
+        类型:{{carType}}
+      </div>
+      <div class="map-img">
+        <img v-bind:src="carNumberSrc">
+      </div>
+      <div class="car-info-body">
+        <ul>
+          <li>
+            <ul>
+              <li>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;车牌号:{{car_number}}</li>
+              <li>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;楼层:{{carpos_floorName}}</li>
+            </ul>
+          </li>
+          <li>
+            <ul>
+              <li> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;车位号:{{carpos_gid}}</li>
+              <li> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;进场时间:{{ car_enterTime}}</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </el-dialog>
+    <!---->
+    <!--消息弹窗-->
+    <dialog-msg :title="diaglogMsg" :msgType="0" :msgData="diagloMsg" @getAll="parkinMsg"  v-if="dialogVisible">
+    </dialog-msg>
+    <!---->
+    </div>
+    <!---->
+
+  <!---->
+</template>
+
+<script>
+  import sidebar from '@/components/modules/sidebar'  /*header*/
+  import headers from '@/components/header/headers'  /*header*/
+  import dialogMsg from '@/components/modules/dialogMsg'
+export default {
+  name: 'App',
+  data(){
+    return{
+      dialogVisible:false,
+      diaglogMsg:'警告',
+      pushTaggle:false,//推送功能开关;
+      diagloMsg:{},
+      userInfo:'',//登录信息
+      dialogList:false,//
+      tunnelTotal:4,//推送消息列表所有的消息推送条数(用户未看的)
+      tunnelListDate:[//模拟车牌推送消息列表
+        /*{
+          index:'1',
+          car_number:'沪MH5580',
+          car_state : '1',
+          car_enterTime: this.formatDate(new Date()),
+          car_picUrl: "http://192.168.0.100:8421/xx/xx.jpg"
+        },
+        {
+          index:'2',
+          car_number:'沪MH5581',
+          car_state : '2',
+          car_enterTime: this.formatDate(new Date()),
+          car_picUrl: "http://192.168.0.100:8421/xx/xx.jpg"
+        },
+        {
+          index:'3',
+          car_number:'沪MH5582',
+          car_state : '3',
+          car_enterTime: this.formatDate(new Date()),
+          car_picUrl: "http://192.168.0.100:8421/xx/xx.jpg"
+        },
+        {
+          index:'4',
+          car_number:'沪MH5583',
+          car_state : '2',
+          car_enterTime: this.formatDate(new Date()),
+          car_picUrl: "http://192.168.0.100:8421/xx/xx.jpg"
+        }*/
+      ],
+      dialog: false,//提示框
+      carNumberSrc:'',//车位图片信息,
+      carType:'',//车位类型
+      car_number:'',//车牌号
+      carpos_floorName:'',//楼层
+      carpos_gid:'',//车位号
+      car_enterTime:'',//进场时间
+      carInfoList:[]//车位信息数组
+    }
+  },
+  methods: {
+    parkinMsg(data){
+      //this.dialogVisible = data.type;
+      console.log('delete！');
+      let that=this;
+      if(that.carInfoList.length>=2){
+        that.carInfoList.shift();
+        that.dialogVisible=false;
+        setTimeout(function () {
+          that.dialogVisible=true;
+        },200);
+      }else {
+        that.carInfoList=[];
+        that.dialogVisible=false;
+      };
+      that.diagloMsg=that.carInfoList[0];
+      console.log(that.carInfoList);
+
+    },
+    mapDialog(){
+      this.dialog=false
+    },
+    lookCarNumber(index, row) {
+      //
+      console.log(row);
+
+      if(row.car_state=='2'){
+        row.car_message="超时停车!";
+      }else if(row.car_state=='3'){
+        row.car_message="黑名单!";
+      }else if(row.car_state=='4'){
+        row.car_message="违停车辆!";
+      }else if(row.car_state=='5'){
+        row.car_message="特殊车辆!";
+      }else if(row.car_state=='6'){
+        row.car_message="固定车位!";
+      }else{
+        row.car_message="";
+      };//
+      this.carType=row.car_message;
+      this.car_number=row.car_number;
+      //this.carpos_gid=testContent.carpos_gid;
+      this.car_enterTime=this.formatDate(new Date(row.car_enterTime));
+      //row.car_picUrl='http://192.168.0.100:8421/pic/17/f085c157faf8_1.jpg';//test
+      let carImg=this.$Api+row.car_picUrl.substring(25);
+      console.log(carImg);
+      this.carNumberSrc="";
+      this.carNumberSrc=carImg;
+      //this.carpos_floorName=content.carpos_floorName;
+
+      this.dialog=true;
+    },
+    gettunnelList(){
+
+      const url=this.$Api+'/GOSSystem/getAlarmMsgList';
+      let dateTime = new Date();////查询的日期
+      const date={
+        user_id: 'beefind001',
+        build_id: this.$BuildId,
+        date: dateTime,  //查询的日期
+        page: '1'
+      };
+      this.$http({
+        method: 'POST',
+        url: url,
+        data: date
+      }).then(response => {
+
+        console.log(response);
+        if(response.result==1){
+          //console.log(response.result.msg_list);
+          this.tunnelListDate=response.result.msg_list;
+          eventbus.$emit('tunnelInfo','20');
+
+        };//
+
+      }).catch((error) => {
+        this.$notify({
+          title: 'ERROR',
+          message: `${error}`,
+          duration: 2000,
+          type: 'error'
+        });
+      });
+
+
+
+    },
+    handleSizeChange(val) {
+      console.log(`每页 ${val} 条`);
+    },
+    handleCurrentChange(val) {
+      console.log(`当前页: ${val}`);
+    },
+    formatDate(now,type) {//转化时间的方法
+      //console.log(now);
+      var year=now.getFullYear();
+      var month=now.getMonth()+1;
+      var date=now.getDate();
+      var hour=now.getHours();
+      var minute=now.getMinutes();
+      var second=now.getSeconds();
+      if(type=='hour'){
+        //-------------------
+        if(minute==0){
+          return second+'秒';
+        }else if(minute<=60){
+          return +minute+'分'+second+'秒';
+        };//
+        //---------------------
+      }else if(type=='onlyHour'){
+        return hour;
+      }else if(type=='ymd'){
+        return year+'/'+''+month+'/'+''+date;
+      }else{
+        return year+'/'+''+month+'/'+''+date+'/'+''+hour+':'+''+minute+':'+second;
+      };
+
+      //return now;
+    },
+    indexMethod(index) {//表格索引
+      //index++;
+      return index+=1;
+    }
+  },
+  mounted() {
+
+
+    let that=this;
+        //that.gettunnelList();//首先获取消息推送列表数量
+
+    eventbus.$on('onUserLogout',function () {
+      that.dialogVisible=false;
+    });//
+
+    eventbus.$on('tunnelCarNum',function () {
+      console.log('APP');
+
+             //that.carInfoList[0];
+      that.carType=that.carInfoList[0].car_message;
+      that.car_number=that.carInfoList[0].car_number;
+      that.carpos_gid=that.carInfoList[0].carpos_gid;
+      that.car_enterTime=that.carInfoList[0].car_enterTime;
+      that.carpos_floorName=that.carInfoList[0].carpos_floorName;
+
+      that.dialog=true;
+    });//推送消息的查看车牌的
+    //监听查看消息推送列表事件
+    eventbus.$on('tunnelList',function () {
+      /*
+      *请求推送消息列表
+      * 接口恢复取消注释!
+      * */
+      //that.gettunnelList();
+      console.log('tunnelList');
+      that.dialogList=true;
+    });//推送消息的查看车牌的
+    //
+
+
+    //初始化GoEasy对象
+    if(typeof GoEasy !== 'undefined'){
+      that.goEasy = new GoEasy({
+        appkey: 'BC-72fd8a56ab784bb9b8c3325ca09de154',
+        userId:"beefind",
+        username:"beefind",
+        onConnected:function(){
+          //alert("Connect to GoEasy success.");
+        } ,
+        onDisconnected:function(){
+          //alert("Disconnect to GoEasy server.");
+        } ,
+        onConnectFailed:function(error){
+          //alert("Connect to GoEasy failed, error code: "+ error.code+" Error message: "+ error.content);
+        }
+      });
+    };//
+    //订阅channel
+
+    subscribe();
+    function subscribe(){
+      that.goEasy.subscribe({
+        channel: 'beefind',
+        onMessage: function(message){////自动接收推送信
+          //--------
+          that.pushTaggle = localStorage.getItem('messagePush')==='true';
+          that.userInfo = localStorage.getItem('userInfo');
+          console.log(that.userInfo);
+
+          //console.log(message.content);
+          //http://beefindtech.cn:40005/pic/15/f085c188df63_2.jpg(测试图片)
+
+
+
+          var content=JSON.parse(message.content);
+
+              content.car_picUrl='http://192.168.0.100:8421/pic/17/f085c157faf8_1.jpg';//test
+              let carImg=that.$Api+content.car_picUrl.substring(25);
+              console.log(carImg);
+              that.carNumberSrc="";
+              that.carNumberSrc=carImg;
+          content.type="0";//提示类型
+          if(content.car_state=='2'){
+             content.car_message="超时停车!";
+          }else if(content.car_state=='3'){
+             content.car_message="黑名单!";
+          }else if(content.car_state=='4'){
+            content.car_message="违停车辆!";
+          }else if(content.car_state=='5'){
+            content.car_message="特殊车辆!";
+          }else if(content.car_state=='6'){
+            content.car_message="固定车位!";
+          }else{
+            content.car_message="";
+          };//
+
+          content.car_enterTime='2018/6/7/16:00';//test
+          content.carpos_floorName='B1';//test
+
+
+          //that.car_enterTime='2018/6/7/16:00';
+
+          //content.type="0";
+          console.log(content);
+
+
+          let testContent=content;
+          //alert('Meessage received:'+message.content);
+
+          that.carType=testContent.car_message;
+          that.car_number=testContent.car_number;
+          that.carpos_gid=testContent.carpos_gid;
+          that.car_enterTime=content.car_enterTime;
+          that.carpos_floorName=content.carpos_floorName;
+          that.carInfoList.unshift(testContent);
+          console.log(that.carInfoList);
+          that.diagloMsg=that.carInfoList[0];
+          //记录推送信息;
+
+          //
+          if(that.userInfo!=null){//是否登录
+            //推送开关
+            //console.log('on');
+            if(that.pushTaggle){
+              that.dialogVisible=true;
+            }else {
+              that.dialogVisible=false;
+            };
+          }else{
+            that.dialogVisible=false;
+          };//
+          //2,把推送过来的信息进行记录;
+
+        },
+        onSuccess:function(){
+          //alert("Subscribe the Channel successfully.");
+        },
+
+        onFailed: function(error){
+
+          //alert("Subscribe the Channel failed, error code: "+ error.code + " error message: "+ error.content);
+
+        }
+
+      });
+
+    };//
+  },
+  components:{headers,sidebar,dialogMsg}
+}
+</script>
+
+<style lang="scss">
+  #app{
+    /*display: flex;*/
+    flex-flow: column nowrap;
+    place-content: flex-end flex-start;
+    align-items: flex-start;
+    position: fixed;
+    height: 100%;
+    width: 100%;
+    align-items: baseline;
+    align-content: stretch;
+    .appView{
+      display: flex;
+      width: 100%;
+      min-height: 100%;
+    }
+
+  }
+  .tunnelListDialog{
+
+  }
+  .imgSrcDialog{
+    /*border: 1px solid #ff0000;*/
+  }
+  .map-top{
+    border-bottom: 1px solid #cccccc;
+    margin-top: -25px;
+    margin-bottom: 0px ;
+  }
+  .map-img{
+    width: 100%;
+    text-align: center;
+    /*border: 1px solid #ff0000;*/
+  }
+  .car-info-top{
+    width: 100%;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-family: "Microsoft YaHei";
+    font-size: 16px;
+    /*border: 1px solid #ff0000;*/
+  }
+  .car-info-body{
+    width: 100%;
+    height: 70x;
+    line-height: 70px;
+    text-align: center;
+    font-family: "Microsoft YaHei";
+    font-size: 16px;
+    margin-top: 5px;
+    /*border: 1px solid #ff0000;*/
+    ul:first-child{
+      width: 100%;
+      height: 70px;
+      line-height: 70px;
+
+      /*border: 1px solid #ff0000;*/
+      li{
+        width: 100%;
+        height: 35px;
+        line-height: 35px;
+        ul{
+          width: 100%;
+          height: 35px;
+          line-height: 35px;
+          li{
+            width: 50%;
+            height: 35px;
+            line-height: 35px;
+            text-align: left;
+            float: left;
+          }
+        }
+      }
+    }
+  }
+
+  /**/
+  .map-img img{
+    width: 100%;
+    display: inline-block;
+  }
+</style>

@@ -1,0 +1,295 @@
+<template>
+  <div class="par-state main-padding">
+    <div class="general">
+      <div class="state-from" >
+            <div class="general-nav">
+            过夜时间设置
+            </div>
+            <div class="general-input">
+              <el-time-picker
+                v-model="hoursdate"
+                placeholder="任意时间点"  value-format="H" style="width: 100%;">
+              </el-time-picker>
+            </div>
+            <div class="general-input">
+              <el-time-picker
+               v-model="hoursdate1"
+               placeholder="任意时间点"  value-format="H" style="width: 100%;">
+              </el-time-picker>
+            </div>
+            <div class="general-input">
+              <el-button type="primary" round style="width: 100%;" @click="setOverNight()">确认</el-button>
+            </div>
+      </div>
+      <div class="state-from" >
+        <div class="general-nav">
+          超时停车时间设置
+        </div>
+        <div class="general-input">
+          <el-input
+            placeholder="    (单位:小时)"
+            v-model="inputData"
+            size="small"
+            type="tel"
+            clearable   class="input-round">
+          </el-input>
+        </div>
+        <div class="general-input">
+          <el-button type="primary" round style="width: 100%;" @click="setOverTime()">确认</el-button>
+        </div>
+
+      </div>
+      <div class="state-from" >
+        <div class="general-nav">
+          推送报警是否开启
+        </div>
+        <div class="general-input">
+            <el-switch
+              v-model="switchTaggle"
+              active-color="#13ce66"
+              @change="taggleSwitch()"
+              inactive-color="#cccccc">
+            </el-switch>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  import  {mapActions} from 'vuex'
+
+  export default {
+    name: "parking-state",
+    data(){
+      return{
+        switchTaggle:false,
+        inputData:'24',
+        hoursdate:'',
+        hoursdate1:'',
+        carType:'0',
+        carTypes:[
+          {
+            label:'当天',
+            value:'0'
+          },
+          {
+            label:'第一天',
+            value:'1'
+          },
+          {
+            label:'第二天',
+            value:'2'
+          },
+        ],
+        period:'0',
+        periods:[
+          {
+            label:'上午',
+            value:'0'
+          },
+          {
+            label:'下午',
+            value:'1'
+          },
+          {
+            label:'晚上',
+            value:'2'
+          }
+        ],
+        carArea:'0',
+        carAreas:[
+          {
+            label:'1层',
+            value:'0'
+          },
+          {
+            label:'B1层',
+            value:'1'
+          },
+          {
+            label:'B2层',
+            value:'2'
+          }
+        ],
+        area:'0',
+        areas:[
+          {
+            label:'A区',
+            value:'0'
+          },
+          {
+            label:'B区',
+            value:'1'
+          },
+          {
+            label:'C区',
+            value:'2'
+          }
+        ],
+      }
+    },
+    created(){
+
+    },
+    computed:{
+      switchName(){
+        this.switchTaggle=this.$store.state.activeNote.text;
+        return this.$store.state.activeNote.text;
+      }
+    },
+    mounted(){
+      this.switchTaggle = localStorage.getItem('messagePush')==='true';
+    },
+    methods:{
+      ...mapActions([
+        'add','upDate'
+      ]),
+      /*...mapMutations({
+
+      }),*/
+      taggleSwitch(){
+        //this.$store.commit('upDate',useInfo.messagePush);
+        localStorage.setItem('messagePush',this.switchTaggle);
+
+      },
+      setOverNight(){
+
+        const url='http://192.168.0.100:8421/GOSSystem/nightTimeConfig';
+        const date={
+          user_id:'beefind001',
+          build_id:'B0003',
+          start_day:'Today',
+          start_hour:this.hoursdate,
+          end_day:'tommorrow',
+          end_hour:this.hoursdate1
+        };
+
+        console.log(this.hoursdate+';hoursdate1='+this.hoursdate1);
+        if(this.hoursdate!=''&&this.hoursdate1!=""){
+
+          this.setPost(JSON.stringify(date),url,'');
+
+        }else{
+          this.warn();
+        };
+
+
+      },
+      setOverTime(){
+        const test=999;
+        const url='http://192.168.0.100:8421/GOSSystem/overTimeConfig';
+        const date={
+          user_id:'beefind001',
+          build_id:'B0003',
+          overtime:this.inputData
+        };
+        if(this.inputData!=""){
+          if(isNaN(this.inputData)){
+            this.inputData="";
+            this.warn2();
+          }else{
+            this.setPost(JSON.stringify(date),url,'');
+          };
+        }else{
+          this.warn1();
+        };
+
+
+      },
+      setPost(date,url,urlType){
+
+        var _this=this;
+        var reqData= date;
+        /*
+        * 超时停车设置(时间为小时)
+        * */
+        //---------------
+        this.$http({
+          method: 'POST',
+          url: url,
+          data:date
+        }).then(response => {
+          console.log(response);
+        }).catch(function (err) {
+          console.log(err);
+        });
+        //----------------
+
+      },
+      warn(){
+        this.$message({
+          message: '请设置过夜时间!',
+          type: 'warning',
+          center:true
+        });
+      },
+      warn1(){
+        this.$message({
+          message: '请设置停车超时时间!',
+          type: 'warning',
+          center:true
+        });
+      },
+      warn2(){
+        this.$message({
+          message: '输入格式错误!',
+          type: 'warning',
+          center:true
+        });
+      }
+
+    }
+
+  }
+</script>
+
+<style scoped lang="scss">
+  .par-state{
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    .general{
+      padding-top: 40px;
+      flex: 10 0 auto;
+      border-radius: 3px;
+      background: #fff;
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+    }
+    .general-input{
+      width: 136px;
+      line-height: 48px;
+      margin: 0px 10px;
+      /*border: 1px solid #ff3b52;*/
+    }
+    .general-inputRange{
+      width: 350px;
+      line-height: 48px;
+      margin: 0px 10px;
+      /*border: 1px solid #ff3b52;*/
+    }
+    .general-i{
+      height: 50px;
+      line-height: 50px;
+    }
+    .general-nav{
+      width: 135px;
+      height: 50px;
+      line-height: 50px;
+      text-align: left;
+      margin-left: 30px;
+    }
+    .state-from{
+      display: flex;
+      flex-direction:row ;
+      margin-bottom: 20px;
+    }
+
+  }
+
+</style>

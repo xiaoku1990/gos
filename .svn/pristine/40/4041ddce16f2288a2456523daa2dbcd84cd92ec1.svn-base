@@ -1,0 +1,507 @@
+<template>
+  <div class="par-state main-padding"   v-loading.fullscreen.lock="fullscreenLoading">
+    <el-row :gutter="10">
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12"  >
+
+
+        <div  class="grid-content bg-purple" id="vOne" @click.prevent="dialog('vOne',$event)"  >
+          <!---->
+          <video  id="my-videoOne"   class="video-js"  controls preload="auto" poster="../../../static/img/video/形状587.png" data-setup="{}">
+
+            <source v-bind:src="videoSrc"  ref="oneSrc"  type="rtmp/flv">
+
+          </video>
+          <!---->
+          <!---->
+          <img @click.self.stop="imgMap('vOne')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+        </div>
+
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" >
+        <div class="grid-content bg-purple-light" id="vTwo" @click="dialog('vTwo',$event)" >
+
+          <video  id="my-videoTwo"     class="video-js"  controls preload="auto" poster="../../../static/img/video/形状587.png" data-setup="{}">
+
+            <source src="" type="rtmp/flv"  >
+
+          </video>
+          <img @click.self.stop="imgMap('vTwo')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12">
+        <div class="grid-content bg-purple" id="vThree" @click="dialog('vThree',$event)"   >
+
+          <video  id="my-videoThree"    class="video-js" controls preload="auto" poster="../../../static/img/video/形状587.png" data-setup="{}">
+
+            <source src="" type="rtmp/flv">
+
+          </video>
+          <img @click.self.stop="imgMap('vThree')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+        </div>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" >
+        <div class="grid-content bg-purple-light" id="vFour"  @click="dialog('vFour',$event)">
+
+          <video  id="my-videoFour"    class="video-js" controls preload="auto" poster="../../../static/img/video/形状587.png" data-setup="{}">
+
+            <source src="" type="rtmp/flv">
+
+          </video>
+          <img @click.self.stop="imgMap('vFour')" class="videoIcon" src="../../../static/img/rightVideo.png" alt="">
+        </div>
+      </el-col>
+    </el-row>
+     <!--弹出框-->
+     <div class="dialog"  v-show="dialogVisible">
+
+
+          <div class="dialogInfo" :xs="24" :sm="12" :md="12" :lg="12" :xl="12" :offset="6">
+            <ul>
+              <li>
+                <ul>
+                  <li> 请修改要观看的位置</li>
+                  <li> <i class="el-icon-error" @click.stop="dialogHide()"></i> </li>
+                </ul>
+              </li>
+              <li>
+                <!---->
+
+                <!---->
+                <div id="map"  ref="mybox">
+
+
+                </div>
+                <!---->
+                <img src="../../../static/img/up.png" alt="up" @click="upFloor()" class="up">
+                <div id="floor">
+                  <ul id="floorUl" ref="floorUl">
+
+                  </ul>
+                </div>
+                <img src="../../../static/img/down.png" alt="down" @click="downFloor()" class="down">
+                <!---->
+              </li>
+            </ul>
+          </div>
+
+     </div>
+
+
+
+
+   <!-- <ul class="video-ul">
+        <li class=""  v-for="site in sites">
+          {{site.name}}
+        </li>
+    </ul>-->
+
+  </div>
+</template>
+
+<script>
+  //
+
+   import { module } from "../../../static/ol/findMapOOB"
+  import  dialogMsg from '@/components/modules/dialogMsg'
+  var myPlayerOne , myPlayerTwo , myPlayerThree , myPlayerFour;
+   var autoIndex;
+  var localUrl='http://192.168.0.100:8421';
+  var cameraDate;
+  var cameraUrl;
+  var videoClick;//判断是哪个框
+  var valueJudge;//是否点击的同一个框;
+   var oneClick,twoClick,threeClick,fourClick;//是否点击过
+  export default {
+    name: "video-play",
+    data () {
+      return {
+        sites: { name: 'Runoob' },
+        fullscreenLoading:true,
+        dialogVisible:true,
+        videoSrc:''
+
+      }
+    },
+    components:{
+      // dialogMsg
+    },
+    mounted(){
+      //console.log( this );
+
+      var diaThis=this;
+      this.dialogVisible=false;
+      this.openFullScreen();
+      console.log(module);
+      //map
+      var b_map=new module.BeefindMap({
+        "target": this.$refs.mybox,
+        "floorUl":this.$refs.floorUl,
+        "city_id":"F0021",//城市ID
+        "build_id" :"B0003",//項目ID
+        "floor_id" :"LS06",//樓層ID
+        "floorBarVisible":true,//楼层控件
+        "carLayerVisible":true,//车位层是否显示(默认显示)
+        "carPortLayerVisible":true,//车位号层是否显示(默认显示)
+        "interLayerVisible":true,//兴趣点层是否显示(默认显示)
+        "deviceLayerVisible":false,//设备层是否显示(默认不显示)
+        "deviceLayerVisible":true//设备层是否显示(默认不显示)
+      });
+    //video
+      this.initPlays();
+        //
+        var feature;
+       b_map.on('singleclick',function (event) {
+             console.log(event);
+           feature = b_map.forEachFeatureAtPixel(event.pixel, function(feature){
+           return feature;
+        });
+        if(feature) {
+           console.log(feature);
+           cameraDate=module.getVideoUrl(localUrl,feature.param.fmn,feature.param.rannum);
+           //console.log(cameraDate);
+           cameraUrl='rtmp://'+cameraDate.ip+':1935/live/live';
+          this.videoSrc=cameraUrl;
+          console.log(cameraUrl);
+
+          console.log(videoClick=='vOne');
+          if(videoClick=='vOne'){
+            console.log(111);
+            oneClick=true;
+            myPlayerOne.src(cameraUrl);
+            myPlayerOne.play();
+          }else if(videoClick=='vTwo'){
+            console.log(222);
+            twoClick=true;
+            myPlayerTwo.src(cameraUrl);
+            myPlayerTwo.play();
+          }else if(videoClick=='vThree'){
+            console.log(333);
+            threeClick=true;
+            myPlayerThree.src(cameraUrl);
+            myPlayerThree.play();
+          }else if(videoClick=='vFour'){
+            console.log(this);
+            fourClick=true;
+            myPlayerFour.src(cameraUrl);
+            myPlayerFour.play();
+          }else{
+             console.log('else');
+          };//
+          //
+
+          diaThis.dialogHide();
+
+        };//edit
+     });//*/
+     //----------
+    },
+    methods: {
+      openFullScreen() {
+
+        this.fullscreenLoading = true;
+
+        setTimeout(() => {
+          this.fullscreenLoading = false;
+        }, 2000);
+      },
+      initPlays(){
+
+        myPlayerOne = videojs('my-videoOne',{
+          "techOrder":["html","flash"],
+          "autoplay":false,
+          bigPlayButton : false,
+          textTrackDisplay : false,
+          posterImage: true,
+          errorDisplay : true,
+          controlBar : true
+        });//
+        //--------
+        //console.log(myPlayerOne);
+        //:动态获取视频路径
+        myPlayerTwo = videojs('my-videoTwo',{
+          "techOrder":["html","flash"],
+          "autoplay":false,
+          bigPlayButton : false,
+          textTrackDisplay : false,
+          posterImage: true,
+          errorDisplay : true,
+          controlBar : true
+        });//
+        //myPlayerTwo.src("rtmp://live.hkstv.hk.lxdns.com/live/hks");
+
+        myPlayerThree = videojs('my-videoThree',{
+          "techOrder":["html","flash"],
+          "autoplay":false,
+          bigPlayButton : false,
+          textTrackDisplay : false,
+          posterImage: true,
+          errorDisplay : true,
+          controlBar : true
+        });//
+        //myPlayerThree.src("rtmp://live.hkstv.hk.lxdns.com/live/hks");
+        myPlayerFour = videojs('my-videoFour',{
+          "techOrder":["html","flash"],
+          "autoplay":false,
+          bigPlayButton : false,
+          textTrackDisplay : false,
+          posterImage: true,
+          errorDisplay : true,
+          controlBar : true
+        });//
+      },
+      dialog(value,e){
+        console.log('KKK');
+        console.log(value);
+        //var srcVideo='rtmp://live.hkstv.hk.lxdns.com/live/hks';
+         console.log(autoIndex);
+        console.log(valueJudge);
+        videoClick=value;
+        //--------------------------------
+
+        //是否点击同一个
+         if(valueJudge!=value){
+
+           this.dialogVisible=true;
+           if(value=='vOne'){
+             if(oneClick) this.dialogVisible=false;
+           }else if(value=='vTwo'){
+             if(twoClick) this.dialogVisible=false;
+           }else if(value=='vThree'){
+             if(threeClick) this.dialogVisible=false;
+           }else if(value=='vFour'){
+             if(fourClick) this.dialogVisible=false;
+           };
+
+           // this.dialogVisible=true;
+         }else{
+           //:同一个多次点击
+           //----------------------
+           this.dialogVisible=false;
+           if(value=='vOne'){
+             if(!oneClick) this.dialogVisible=true;
+           }else if(value=='vTwo'){
+             if(!twoClick) this.dialogVisible=true;
+           }else if(value=='vThree'){
+             if(!threeClick) this.dialogVisible=true;
+           }else if(value=='vFour'){
+             if(!fourClick) this.dialogVisible=true;
+           };
+           //---------------------
+         };//
+        //-------------------
+         valueJudge=value;
+
+
+        //console.log(this.videoSrc);
+      },
+      dialogHide(){
+        this.dialogVisible=false;
+      },
+      imgMap(date){
+         console.log(date);
+        videoClick=date;
+        this.dialogVisible=true;
+      },
+      upFloor(){
+        var self=this;
+        module.upFloor(clickSuccess);
+        function clickSuccess(evevt){
+          self.floorName=evevt;
+        };
+      },
+      downFloor(){
+        var self=this;
+        module.downFloor(clickSuccess);
+        function clickSuccess(event){
+          self.floorName=event;
+        };
+      },
+      choseMapUrl(){
+         console.log('kkkk');
+      },
+      open6() {
+        this.$confirm(
+          '此操作将永久删除该文件, 是否继续?',
+          '提示',
+          {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+          center: true
+        }).then(() => {
+          this.$message({
+            type: 'success',
+            message: '删除成功!'
+          });
+        }).catch(() => {
+          this.$message({
+            type: 'info',
+            message: '已取消删除'
+          });
+        });
+      }
+    }
+
+  };
+
+</script>
+
+<style scoped lang="scss">
+ .par-state {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    /*border:1px solid #ff0000;*/
+  }
+  .el-row{
+    width: 100%;
+  }
+
+    .el-col {
+      border-radius: 4px;
+      height: 40vh;
+      margin: 3px auto;
+      /*border:1px solid #FF0000;*/
+      display: inline-block;
+    }
+    .bg-purple-dark {
+      background: #99a9bf;
+    }
+    .bg-purple {
+      background: #d3dce6;
+    }
+    .bg-purple-light {
+      background: #e5e9f2;
+    }
+    .grid-content {
+      border-radius: 4px;
+      min-height: 36px;
+      height: 40vh;
+      line-height: 40vh;
+      text-align: center;
+      /*border:1px solid #ff0000;*/
+      position: relative;
+      z-index: 2010;
+      /*overflow: hidden;*/
+      text-align: left;
+      background: white;
+
+    }
+    .videoIcon{
+      position: absolute;
+      top: 20px;
+      width: 20px;
+      right: 20px;
+      /*border: 1px solid #ff0000;*/
+      /*z-index: 2011;*/
+    }
+    .video-js{
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      object-fit: cover;
+      /*border:1px solid #0000ff;*/
+      position: relative;
+      /*z-index: 2009;*/
+      background: white;
+
+    }
+  .dialog{
+    width: 100vw;
+    height: 100vh;
+    /*border:1px solid #ff0000;*/
+    border-radius: 3px;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    z-index: 2010;
+    background: rgba(0,0,0,0.4);
+    text-align: center;
+  }
+  .dialogInfo{
+    width: 40vw;
+    height: 50vh;
+    min-width: 400px;
+    /*border:1px solid #ff0000;*/
+    border-radius: 3px;
+    position: relative;
+    top: 20vh;
+    left: 24vw;
+    background: white;
+    z-index: 2010;
+  }
+  .dialogInfo>ul{
+    width: 40vw;
+    height: 50vh;
+    min-width: 400px;
+    /*border:1px solid #ff0000;*/
+  }
+  .dialogInfo>ul>li:nth-child(1){
+    height: 8vh;
+    line-height: 8vh;
+    text-align: right;
+    /*border: 1px solid #00FF00;*/
+    border-bottom: 1px solid #cccccc;
+  }
+ .dialogInfo>ul>li:nth-child(1)>ul{
+   width: 40vw;
+
+ }
+ .dialogInfo>ul>li:nth-child(1)>ul>li:nth-child(1){
+   width: 35vw;
+   /*border: 1px solid #00FF00;*/
+   float: left;
+   text-align: center;
+ }
+ .dialogInfo>ul>li:nth-child(1)>ul>li:nth-child(2){
+   width: 5vw;
+   /*border: 1px solid #00FF00;*/
+   float: left;
+   text-align: center;
+ }
+ .dialogInfo>ul>li:nth-child(2){
+   height: 42vh;
+   /*border:1px solid #00FF00;*/
+ }
+/**/
+ #map{
+   width: 40vw;
+   height: 42vh;
+   /*border:1px solid #ff0000;*/
+   position: absolute;
+   z-index: 2010;
+   overflow: visible;
+ }
+ .up{
+   width: 35px;
+   height: 35px;
+   line-height: 35px;
+   text-align: center;
+   /*border:1px solid red;*/
+   position: absolute;
+   right: 20px;
+   bottom:205px;
+   z-index: 2010;
+ }
+ .down{
+   width: 35px;
+   height: 35px;
+   line-height: 35px;
+   text-align: center;
+   /*border:1px solid red;*/
+   position: absolute;
+   right: 20px;
+   bottom:135px;
+   z-index: 2010;
+ }
+  /*#floorUl{
+    position: absolute;
+    right: 20px;
+    bottom:135px;
+    border:1px solid #ff0000;
+  }*/
+</style>

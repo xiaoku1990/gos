@@ -1,0 +1,558 @@
+<template>
+  <div class="par-state main-padding">
+    <div class="state-one">
+      <div class="state-top">
+        <div class="state-round">{{floorName}}<div class="state-box"></div></div>
+      </div>
+      <div class="state-bottom">
+        <ul>
+          <li v-for="item in stateData" :style="{border:'1px solid #'+item.back+''}">
+            <span :style="{background:'#'+item.back+''}"></span><i :style="{borderRight:'1px solid #'+item.back+''}"></i>{{item.name}}：{{item.numberSize}}
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="state-tor" id="mapDiv">
+      <div class="the-map" id="map" ref="mybox">
+      </div>
+      <img src="../../../static/img/up.png" alt="up" @click="upFloor()" class="up">
+      <div id="floor">
+          <ul id="floorUl" ref="floorUl"></ul>
+      </div>
+      <img src="../../../static/img/down.png" alt="down" @click="downFloor()" class="down">
+      <!--<button class="map-button" @click="nextFloor()">下一层</button>-->
+      <!--<button  class="map-button" style=" top: 70%" @click="openDialog" >弹出</button>-->
+      <!--<button  class="map-button" style=" top: 30%" @click="mapImg" >地图弹框</button>-->
+      <!--车位信息-->
+      <div id="popup" ref="popup" class="ol-popup">
+        <div id="popHeader" class="popDiv">
+          车位信息
+          <i class="el-icon-error" id="i-error" @click.self="hideOverLayer()"></i>
+        </div>
+        <div id="popOne" class="popDiv" >
+             <img src="../../../static/img/carID.png" alt="">
+          {{  featureDate.car_number}}
+          <el-button type="text"  id="imgButton"  @click="carNumberImg()">查看车牌</el-button>
+        </div>
+        <div id="popTwo" class="popDiv">
+
+          <img src="../../../static/img/carNumber.png" alt="">
+          {{  featureDate.carNum}}
+        </div>
+        <div id="popThree" class="popDiv">
+
+          <img src="../../../static/img/carInTime.png" alt="">
+          {{  featureDate.car_enterTime}}
+        </div>
+      </div>
+      <!---->
+    </div>
+    <!--消息弹窗-->
+    <dialog-msg :title="diaglogMsg" :msgType="0" :msgData="diagloMsg" @getAll="parkinMsg"  v-if="dialogVisible">
+
+    </dialog-msg>
+    <!--地图弹窗-->
+    <el-dialog
+      class="imgSrcDialog"
+      title="查看图片"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="mapVehicle"
+      @close='mapDialog'
+      top="35vh"
+      width="30%"
+    >
+      <div class="map-img">
+        <img v-bind:src="carNumberSrc">
+      </div>
+
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+  import  dialogMsg from '@/components/modules/dialogMsg'
+  import  { module } from "../../../static/ol/findMapOOB";
+
+  export default {
+    name: "parking-state",
+    components:{dialogMsg},
+    data(){
+      return{
+        stateMsg:true,
+        dialogVisible:false,
+        mapVehicle:false,
+        diaglogMsg:'警告',
+        featureDate:'',//点击后获取的要素数据
+        carNumberSrc:'',//车牌图片路径
+        popupLayer:'',//地图信息层
+        parkMap:'',
+        diagloMsg:{
+          name:'京A.13232323',
+          id:'P1#A012',
+          type:0
+          },
+        //当前楼层名称
+        floorName:"",
+        //占用数，空余数，超时停车，黑名单，违规停车，特殊车辆显示数据
+        stateData:[],
+      }
+    },
+    created(){
+      //this.initParkinfo();
+    },
+    mounted(){
+      //创建地图
+
+      //console.log(this.$Api);
+      var parkThis=this;
+
+      this.dialogVisible = localStorage.getItem('messagePush')==='true';
+
+      console.log(parkThis.dialogVisible);
+
+      var b_map=new module.BeefindMap({
+        "target": this.$refs.mybox,
+        "floorUl":this.$refs.floorUl,
+        'mapType':'carState',
+        'urlLocal':this.$Api,
+        "city_id":"F0021",//城市ID
+        "build_id":this.$BuildId,//項目ID
+        "floor_id" :"",//樓層ID
+        "floorBarVisible":true,//楼层控件
+        "carLayerVisible":true,//车位层是否显示(默认显示)
+        "carPortLayerVisible":true,//车位号层是否显示(默认显示)
+        "interLayerVisible":true,//兴趣点层是否显示(默认显示)
+        "deviceLayerVisible":false,//设备层是否显示(默认不显示)
+        "deviceLayerVisible":false//设备层是否显示(默认不显示)
+      });
+      parkThis.parkMap=b_map;
+      //popup
+      var popup = new ol.Overlay({
+        element: parkThis.$refs.popup,
+        positioning: 'top-center',
+        stopEvent: true,
+        offset: [0, -25]
+      });
+      //
+      parkThis.popupLayer=popup;
+//
+      parkThis.parkMap.addOverlay(parkThis.popupLayer);
+
+
+      parkThis.parkMap.on('singleclick',function (event) {
+        // var clickPark=localStorage.getItem('clickMap');
+        //
+        //console.log(event);
+
+        var feature = parkThis.parkMap.forEachFeatureAtPixel(event.pixel, function (feature) {
+          return feature;
+        });
+        console.log(feature);
+        if (feature) {
+
+
+            if(feature.type=='car'||feature.type=='carEvent'){
+              parkThis.featureDate=feature;
+              if(feature.car_state=='0'){
+                parkThis.popupLayer.setPosition(undefined);
+                parkThis.dialogWarn();
+
+              }else if(feature.car_state=='5'){
+                parkThis.specialWarn();
+              }else{
+                var coordinates = feature.carposPoint;
+                parkThis.popupLayer.setPosition(coordinates);
+
+              };//
+              //----------------
+            };
+        }else{
+           parkThis.featureWarn();
+        };//edit
+        //
+      });
+      // console.log(b_map);
+      //
+       parkThis.initParkInfo(parkThis.parkMap.floor,parkThis.parkMap.carpos_sum);
+
+      /* if(parkThis.parkMap.carRule.length!=0){
+          parkThis.dialogVisible=true;
+         // parkThis.diagloMsg.name=parkThis.parkMap.carRule[0].carInfo.car_number;
+         // parkThis.diagloMsg.id=parkThis.parkMap.carRule[0].carInfo.carUID;
+         // parkThis.diagloMsg.type=0;
+
+       };*/
+        setInterval(function () {
+          parkThis.initParkInfo(parkThis.parkMap.floor,parkThis.parkMap.carpos_sum);
+        },1000*60*2);
+
+      //-------------
+
+
+
+    },
+    beforeDestroy(){
+      const mapThis=this;
+      mapThis.parkMap.removeEventListener('singleclick');
+      console.log(mapThis.parkMap);
+      module.clearStateInter();//清除全局定时器;
+      mapThis.parkMap="";
+      console.log(module);
+
+    },
+    methods:{
+      //地图弹窗
+      mapImg(){
+        this.mapVehicle=true
+      },
+      mapDialog(){
+        this.mapVehicle=false
+      },
+      parkinMsg(data){
+        this.dialogVisible = data.type;
+        console.log(data);
+
+      },
+      //初始化查询出来的占用数，空余数，超时停车，黑名单，违规停车，特殊车辆显示数据
+      initParkInfo(floorName,stateDate){
+       //
+
+        //
+        //var self=this;
+        //向后台请求数据示例
+       /* var reqData= {
+          username: '1001',
+          password: '123456'
+        };
+        self.$http.post('http://localhost:8014/api/Sys/Login',reqData,{dataType:'jsonp'})
+          .then(data => {
+            if(data.status==200){
+              console.log("aa");
+            }
+            else{
+              console.log('登录失败');
+            }
+          })
+          .catch(function (error) {
+            console.log(error);
+          });*/
+
+
+
+
+
+
+
+        this.floorName=floorName; //改变楼层
+        this.stateData=[
+          {
+            name:'占用数',
+            numberSize:stateDate.full,
+            back:'fd435a'
+          },
+          {
+            name:'空余数',
+            numberSize:stateDate.empty,
+            back:'85e249'
+          },
+          {
+            name:'超时停车',
+            numberSize:stateDate.overtime,
+            back:'ffbb44'
+          },
+          {
+            name:'黑名单',
+            numberSize:stateDate.blacklist,
+            back:'000000'
+          },
+          {
+            name:'违规停车',
+            numberSize:stateDate.badpark,
+            back:'4882ff'
+          },
+          {
+            name:'特殊车辆',
+            numberSize:stateDate.special,
+            back:'d1980d'
+          },
+        ]
+      },
+
+      stateClose(){
+        console.log('我关闭了')
+      },
+      stateClick(){
+        console.log('查看')
+      },
+      //下一层
+      upFloor(){
+        var self=this;
+        module.upFloor(clickSuccess);
+        function clickSuccess(evevt){
+          self.floorName=evevt;
+        };
+      },
+      downFloor(){
+        var self=this;
+        module.downFloor(clickSuccess);
+        function clickSuccess(event){
+          self.floorName=event;
+        };
+      },
+      //打开警告弹窗
+      openDialog(){
+        this.dialogVisible=true;
+        //暂时没写
+      },//
+      //查看车牌信息
+      carNumberImg(){
+        this.carNumberSrc=this.featureDate.car_picUrl;
+        this.popupLayer.setPosition(null);
+        this.mapVehicle=true;
+      },
+      dialogWarn() {
+        this.$message({
+          message: '当前车位信息为空!',
+          type: 'warning',
+          center:true
+        });
+      },
+      specialWarn(){
+        this.$message({
+          message: '该车为特殊车辆!无权限查看!',
+          type: 'warning',
+          center:true
+        });
+      },
+      featureWarn(){
+        this.$message({
+          message: '查看车牌请点击车位!',
+          type: 'warning',
+          center:true
+        });
+      },
+      hideOverLayer(){
+        this.featureDate="";
+        //this.popupLayer.setPosition(null);
+        this.popupLayer.setPosition(undefined);
+      }
+
+
+
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  .par-state{
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    height: calc(100% - 120px);
+    width: calc(100% - 226px);
+    /*border: 1px solid #00FF00;*/
+    .state-one{
+      order: 1;
+      overflow-y: auto;
+      flex: 2 0 auto;
+      border-radius: 3px;
+      background: #fff;
+      margin-right: 10px;
+      display: flex;
+      flex-direction: column;
+      /*border: 1px solid #ff3b52;*/
+      .state-top{
+        flex: 5 0 auto;
+        align-items: center;
+        display: flex;
+        align-self: center;
+        .state-round{
+          text-align: center;
+          line-height: 160px;
+          color: #fff;
+          font-size: 36px;
+          background: linear-gradient(180deg, #fdada2 0px, #ff999d 100%) center center / cover;
+          border-radius: 50%;
+          width: 160px;
+          height: 160px;
+          border: 1px solid #ff3b52;
+        }
+        .state-box{
+          height: 9px;
+          border-radius: 10px;
+          width: 100px;
+          margin: 0 auto;
+          -webkit-box-shadow: 0px 10px 10px #ffc4c8;
+          box-shadow: 0px 21px 25px #ffc4c8;
+          position: relative;
+          top: -15px;
+          /* z-index: 111; */
+        }
+      }
+      .state-bottom{
+        flex: 3 0 auto;
+        ul{
+          li{
+            width: 80%;
+            padding:5px 10px 5px 18px;
+            margin: 2px 8% 30px 12%;
+            border-radius:3px ;
+            position: relative;
+            border-left:0px !important;
+            span{
+              border-radius: 50%;
+              display: inline-block;
+              height: 18px;
+              width: 18px;
+              border-radius: 50%;
+              display: inline-block;
+              position: absolute;
+              top: -1px;
+              left: -7px;
+              z-index: 2;
+            }
+            i{
+              display: inline-block;
+              width: 13px;
+              height: 22px;
+              position: absolute;
+              z-index: 1;
+              left: -2px;
+              top: 10px;
+              background: #fff;
+            }
+          }
+        }
+      }
+    }
+    .state-tor{
+      order: 9;
+      border-radius: 3px;
+      background: #fff;
+      flex: 9 0 auto;
+      text-align: center;
+      position: relative;
+      /*border:1px solid #ff3b52;*/
+      .the-map{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        /*border:1px solid #ff3b52;*/
+      }
+      #floorUl li{
+        width: 35px;
+        height: 35px;
+        overflow: hidden;
+      }
+      #floor{
+        /*border: 1px solid #ff0000;*/
+        width: 35px;
+        height: 35px;
+        overflow: hidden;
+        position: absolute;
+        bottom: 200px;
+
+      }
+      .up{
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        text-align: center;
+        /*border:1px solid red;*/
+        position: absolute;
+        right: 20px;
+        bottom:235px;
+        z-index: 2010;
+      }
+      .down{
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        text-align: center;
+        /*border:1px solid red;*/
+        position: absolute;
+        right: 20px;
+        bottom:165px;
+        z-index: 2010;
+      }
+      .map-button{
+        position: absolute;
+        top: 50%;
+        right: 0px;
+        height: 58px;
+        width: 58px;
+        border-radius: 50%;
+        transform: translate(-58%, -36%);
+        color: #745fea;
+        background: #ded8fe;
+        border: 1px solid #745fea;
+        transition: ease-in-out 0.4s;
+        &:hover{
+          background: #745fea;
+          color: #fff;
+          box-shadow: 0px 0px 5px #745fea;
+        }
+      }
+    }
+  }
+  #popHeader{
+    text-align: center;
+  }
+
+  #popup{
+    width: 150px;
+    height: 120px;
+    position: absolute;
+    z-index: 2015;
+    /*border:1px solid black;*/
+    border-radius: 3px;
+    overflow: hidden;
+    /*-webkit-filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));*/
+  }
+  .popDiv{
+    position: relative;
+    width: 150px;
+    height: 30px;
+    line-height: 30px;
+    top: 0px;
+    /*line-height: 30px;*/
+    border: 1px solid #cccccc;
+    background: white;
+    font-size: 8px;
+    overflow-y: hidden;
+    text-align: left;
+  }
+  #imgButton{
+    float: right;
+    line-height: 5px;
+    font-size: 9px;
+  }
+  #imgButton:active{
+    background: #cccccc;
+  }
+  .popDiv img{
+    margin-left: 5px;
+    width: 14px;
+  }
+  #i-error{
+    float: right;
+    line-height: 30px;
+  }
+  .imgSrcDialog{
+    /*border: 1px solid #ff3b52;*/
+  }
+  .map-img{
+    width: 100%;
+    text-align: center;
+    /*border: 1px solid #ff3b52;*/
+  }
+  .map-img img{
+    width: 100%;
+    display: inline-block;
+    /*border:1px solid #ff3b52;*/
+  }
+</style>

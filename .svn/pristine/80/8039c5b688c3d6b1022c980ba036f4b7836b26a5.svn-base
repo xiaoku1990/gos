@@ -1,0 +1,624 @@
+<template>
+  <div>
+    <div>
+      <div class="main-padding stor-var">
+        <div class="auth-row">
+          <p class="back-title">
+            <span><i></i>人员管理与授权</span>
+            <el-button round icon="el-icon-plus" size="small" @click="addDialog">新增记录</el-button>
+          </p>
+          <el-table
+            :data="tableData"
+            height="100%"
+            style="width: 100%;">
+            <el-table-column
+              label="编号"
+              prop="user_id"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              prop="user_name"
+              empty-text="暂无数据"
+              label="姓名"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              prop="nick_name"
+              empty-text="暂无数据"
+              label="登陆账号"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              :formatter="departmentFormatter"
+              prop="user_departmentName"
+              empty-text="暂无数据"
+              label="所属部门"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              :formatter="roleFormatter"
+              prop="user_roleName"
+              empty-text="暂无数据"
+              label="人员角色"
+              align="center"
+              width="">
+            </el-table-column>
+            <el-table-column
+              empty-text="暂无数据"
+              label="人员状态"
+              align="center"
+              width="">
+              <template slot-scope="scope">
+                <span v-if="scope.row.user_state==1">启用</span>
+                <span v-else-if="scope.row.user_state==0" style="color: red">禁用</span>
+              </template>
+            </el-table-column>
+            <el-table-column
+              empty-text="暂无数据"
+              label="授权状态"
+              align="center"
+              width="">
+              <template slot-scope="scope">
+                <span v-if="scope.row.user_authorize==1">已授权</span>
+                <span v-else-if="scope.row.user_authorize==0" style="color: red">未授权</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column
+              align="center"
+              label="操作"
+              width="280px">
+              <template slot-scope="scope">
+                <el-button size="mini" round @click="editDialog(scope.row,$event)"><i class="back-i-bulr"></i>编辑
+                </el-button>
+                <el-button size="mini" round @click="roleEditDialog(scope.row,$event)"><i class="back-i-yellow"></i>授权
+                </el-button>
+                <el-button size="mini" round @click="del(scope.row,$event)" type="info"><i class="back-i-red"></i>删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div class="block">
+          <el-pagination
+          @current-change="tablePageChange"
+          :current-page.sync="tableFormData.page"
+          :page-count="tablePageTotal"
+          layout="prev, pager, next, slot, jumper">
+          <span class="el-pagination__total page-count-padding">共{{tablePageTotal}}页</span>
+          </el-pagination>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--新增-->
+    <el-dialog
+      title="新增人员信息"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="addDialogVisiable"
+      width="30%"
+      top="10vh">
+      <el-form ref="addFormData" :model="addFormData" label-width="80px">
+        <el-col :span="24">
+          <el-form-item label="姓名">
+            <el-input v-model="addFormData.add_user.user_name"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="所属部门">
+            <el-select v-model="addFormData.add_user.user_departmentID">
+              <el-option v-for="item in departmentList" :label="item.department_name"
+                         :value="item.department_id"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="登陆名">
+            <el-input v-model="addFormData.add_user.nick_name"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="登陆密码">
+            <el-input v-model="addFormData.add_user.user_pwd"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="电话">
+            <el-input v-model="addFormData.add_user.user_tel"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="邮箱">
+            <el-input v-model="addFormData.add_user.user_email"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="描述">
+            <el-input v-model="addFormData.add_user.summary" type="textarea"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="人员状态">
+            <el-radio-group v-model="addFormData.add_user.user_state">
+              <el-radio label="1">启用</el-radio>
+              <el-radio label="0">禁用</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="addDialogVisiable = false" type="text">取 消</el-button>
+        <el-button type="primary" :loading="adding" size="small" round @click="add">确 定</el-button>
+      </span>
+    </el-dialog>
+
+    <!--编辑-->
+    <el-dialog
+      title="人员编辑"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="editDialogVisible"
+      width="50%"
+    >
+      <el-form ref="editFormData" :model="editFormData" label-width="80px">
+        <el-col :span="24">
+          <el-form-item label="姓名">
+            <el-input v-model="editFormData.edit_user.user_name"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="所属部门">
+            <el-select v-model="editFormData.edit_user.user_departmentID">
+              <el-option v-for="item in departmentList" :label="item.department_name"
+                         :value="item.department_id"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="电话">
+            <el-input v-model="editFormData.edit_user.user_tel"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="邮箱">
+            <el-input v-model="editFormData.edit_user.user_email"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="描述">
+            <el-input type="textarea" v-model="editFormData.edit_user.summary"></el-input>
+          </el-form-item>
+        </el-col>
+        <el-col :span="24">
+          <el-form-item label="人员状态">
+            <el-radio-group v-model="editFormData.edit_user.user_state">
+              <el-radio :label="1">启用</el-radio>
+              <el-radio :label="0">禁用</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+      <el-button right @click="editDialogVisible = false" type="text">取 消</el-button>
+      <el-button type="primary" :loading="editing" @click="edit">确 定</el-button>
+      </span>
+    </el-dialog>
+
+    <!--授权-->
+    <el-dialog
+      title="分配权限"
+      :append-to-body='true' :lock-scroll="true" :modal="true"
+      :close-on-click-modal="false"
+      :visible.sync="roleEditDialogVisiable"
+      width="30%"
+    >
+      <el-select label="角色" v-model="roleEditFormData.edit_userRole.user_roleID">
+        <el-option
+          v-for="item in roleList"
+          :label="item.role_name"
+          :value="item.role_id">
+        </el-option>
+      </el-select>
+      <span slot="footer" class="dialog-footer">
+        <el-button right @click="roleEditDialogVisiable = false" type="text">取 消</el-button>
+        <el-button type="primary" :loading="roleEditing" @click="roleEdit">确 定</el-button>
+      </span>
+    </el-dialog>
+
+  </div>
+</template>
+
+<script>
+  import {common} from '../../../common/js/common.js'
+
+  export default {
+    name: "personnel",
+    data() {
+      return {
+        roleList: [{"role_name": "无", "role_id": "0"}],
+        roleFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+        },
+        departmentList: [{"department_name": "无", "department_id": "0"}],
+        departmentFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+        },
+        //表格数据
+        tableData: [],
+        tablePageTotal: 1,
+        tableFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+          page: 1
+        },
+        //新增
+        adding: false,
+        addDialogVisiable: false,
+        addFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+          add_user: {
+            user_name: '',
+            nick_name: '',
+            user_departmentName: '',
+            user_departmentID: '0',
+            user_pwd: '',
+            user_state: '1',
+            user_tel: '',
+            user_email: '',
+            summary: ''
+          }
+        },
+        //编辑
+        editing: false,
+        editDialogVisible: false,
+        editFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+          edit_user: {
+            user_id: '',
+            user_name: '',
+            user_departmentName: '',
+            user_departmentID: '',
+            // user_pwd: '',
+            user_state: '',
+            user_tel: '',
+            user_email: '',
+            summary: ''
+          }
+        },
+        //角色编辑
+        roleEditing: false,
+        roleEditDialogVisiable: false,
+        roleEditFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+          edit_userRole: {
+            user_id: '',
+            user_roleName: '',
+            user_roleID: '',
+            user_authorize: ''
+          }
+        },
+        //删除
+        deleteFormData: {
+          user_id: common().config.userId,
+          build_id: this.$BuildId,
+          delete_user: {
+            user_id: '',
+            user_name: ''
+          }
+        }
+      }
+    },
+    mounted() {
+      this.roleInfoLoad();
+      this.departmentInfoLoad();
+      this.tableUpdate();
+    },
+    methods: {
+      roleFormatter(row, column, cellValue) {
+        return (cellValue ? cellValue : '无');
+      },
+      departmentFormatter(row, column, cellValue) {
+        return (cellValue ? cellValue : '无');
+      },
+      roleInfoLoad() {
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/getRoleInfoSpeedy`,
+          params: this.roleEditFormData
+        }).then(response => {
+          if (response.data.result === 1) {
+            this.roleList = this.roleList.concat(response.data.role_list);
+          }
+        }).catch();
+      },
+      departmentInfoLoad() {
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/getDepartmentInfoSpeedy`,
+          params: this.departmentFormData
+        }).then(response => {
+          if (response.data.result === 1) {
+            this.departmentList = this.departmentList.concat(response.data.department_list);
+          }
+        }).catch();
+      },
+      //列表
+      tableUpdate() {
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/getUserInfo`,
+          params: this.tableFormData
+        }).then(response => {
+          this.tableData = response.data.user_list.reverse();
+        }).catch();
+      },
+      tablePageChange(page) {
+        console.log(`当前页: ${page}`);
+        this.tableUpdate()
+      },
+      //新增
+      addDialog() {
+        this.addDialogVisiable = true;
+        this.addFormData.add_user = {
+          user_name: '',
+          nick_name: '',
+          user_departmentName: '',
+          user_departmentID: '0',
+          user_pwd: '',
+          user_state: '1',
+          user_tel: '',
+          user_email: '',
+          summary: ''
+        }
+      },
+      add() {
+        if (!this.addFormData.add_user.nick_name) {
+          this.$message({
+            title: '注意',
+            message: '登陆名称不能为空',
+            duration: 2000,
+            type: 'warning'
+          });
+          return;
+        }
+        if (!this.addFormData.add_user.user_pwd) {
+          this.$message({
+            title: '注意',
+            message: '密码不能为空',
+            duration: 2000,
+            type: 'warning'
+          });
+          return;
+        }
+        this.adding = true;
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/addUserInfo`,
+          params: this.addFormData
+        }).then(response => {
+          this.adding = false;
+          if (response.data.result === 1) {
+            this.$notify({
+              title: '成功',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'success'
+            });
+            this.addDialogVisiable = false;
+            this.tableUpdate();
+          } else {
+            this.$notify({
+              title: '添加失败',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'error'
+            });
+          }
+        }).catch();
+      },
+      //编辑
+      editDialog(row, event) {
+        event.cancelBubble = true;
+        this.editDialogVisible = true;
+        this.editFormData.edit_user = { //直接赋值可能是因为elenmet 方法把row进行数据绑定了
+          user_id: row.user_id,
+          user_name: row.user_name,
+          user_departmentName: row.user_departmentName,
+          user_departmentID: row.user_departmentID,
+          user_state: row.user_state,
+          user_tel: row.user_tel,
+          user_email: row.user_email,
+          summary: row.summary
+        }
+      },
+      edit() {//导致row会全局引用
+        this.editing = true;
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/editUserInfo`,
+          params: this.editFormData
+        }).then(response => {
+          this.editing = false;
+          if (response.data.result === 1) {
+            this.editing = false;
+            this.$notify({
+              title: '成功',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'success'
+            });
+            this.tableUpdate();
+          } else {
+            this.$notify({
+              title: '编辑失败',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'error'
+            });
+          }
+        }).catch();
+      },
+      //角色编辑
+      roleEditDialog(row, event) {
+        event.cancelBubble = true;
+        this.roleEditDialogVisiable = true;
+        this.roleEditFormData.edit_userRole = {
+          user_id: row.user_id,
+          user_roleName: row.user_roleName,
+          user_roleID: row.user_roleID,
+          user_authorize: 1
+        };
+      },
+      roleEdit() {//导致row会全局引用
+        this.roleEditing = true;
+        this.$http({
+          method: 'post',
+          url: `${this.$Api}/GOSSystem/editUserRole`,
+          params: this.roleEditFormData
+        }).then(response => {
+          this.roleEditing = false;
+          if (response.data.result === 1) {
+            this.roleEditing = false;
+            this.$notify({
+              title: '成功',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'success'
+            });
+            this.tableUpdate();
+          } else {
+            this.$notify({
+              title: '分配权限失败',
+              message: response.data.msg,
+              duration: 2000,
+              type: 'error'
+            });
+          }
+        }).catch();
+      },
+      del(row, event) {
+        event.cancelBubble = true;
+        this.$confirm('此操作将永久删除该用户, 是否继续?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          this.deleteFormData.delete_user = {
+            user_id: row.user_id,
+            user_name: row.user_name
+          };
+          this.$http({
+            method: 'post',
+            url: `${this.$Api}/GOSSystem/deleteUserInfo`,
+            params: this.deleteFormData
+          }).then(response => {
+            if (response.data.result === 1) {
+              this.$notify({
+                type: 'success',
+                title: '成功',
+                message: response.data.msg,
+                duration: 2000
+              });
+              this.tableUpdate();
+            } else {
+              this.$notify({
+                type: 'error',
+                title: '删除失败',
+                message: response.data.msg,
+                duration: 2000
+              });
+            }
+          }).catch();
+        }).catch(() => {
+          console.log('取消删除');
+        });
+      }
+    }
+  }
+</script>
+
+<style scoped lang="scss">
+  @import "../../../style/variables.scss";
+
+  .back-nav {
+    background: #fff;
+    padding: 12px 20px;
+    margin: 0px;
+    margin-bottom: 20px;
+  }
+
+  .auth-row {
+    display: flex;
+    height: calc(100% - 120px);
+    /*width: calc(100% - 226px);*/
+    width: 100%;
+    flex-direction: column;
+    .el-table {
+      flex: 6 0 auto;
+    }
+    .back-title {
+      flex: 1 0 auto;
+      float: left;
+      text-align: right;
+      line-height: 30px;
+      width: 100%;
+      margin-bottom: 10px;
+      span {
+        color: #7362e4;
+        float: left;
+        i {
+          display: inline-block;
+          height: 18px;
+          float: left;
+          background: #7362e4;
+          width: 3px;
+          margin-right: 6px;
+          position: relative;
+          top: 6px;
+        }
+      }
+    }
+    .block {
+      flex: 1 0 auto;
+      text-align: center;
+      margin: 20px 0px;
+    }
+  }
+
+  .back-i-bulr {
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    border-radius: 25px;
+    margin-right: 6px;
+    background: $green;
+  }
+
+  .back-i-yellow {
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    border-radius: 25px;
+    margin-right: 6px;
+    background: $yellow;
+  }
+
+  .back-i-red {
+    display: inline-block;
+    height: 10px;
+    width: 10px;
+    margin-right: 6px;
+    border-radius: 25px;
+    background: $red;
+  }
+</style>
